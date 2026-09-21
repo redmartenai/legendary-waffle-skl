@@ -1,0 +1,6 @@
+from django.apps import AppConfig
+
+
+class HomeworkConfig(AppConfig):
+    name = "apps.homework"
+    label = "homework"

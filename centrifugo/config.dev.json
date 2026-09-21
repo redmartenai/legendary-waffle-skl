@@ -1,0 +1,25 @@
+{
+  "client": {
+    "token": { "hmac_secret_key": "zloHn356ImBBJ1tTNgr9p_h1WUj5MiIWiCSaS8vMj3rrkY94svcwcNnfb0pKHMBZ" },
+    "allowed_origins": ["*"]
+  },
+  "http_api": { "key": "jIZ1Aqm2zs8l8pYpKX2RPy8qoJ3cMVqgN777ekOMyCI" },
+  "http_server": { "port": "8001" },
+  "channel": {
+    "namespaces": [
+      {
+        "name": "trip",
+        "history_size": 1,
+        "history_ttl": "600s",
+        "force_recovery": true
+      },
+      {
+        "name": "personal",
+        "allow_user_limited_channels": true,
+        "history_size": 50,
+        "history_ttl": "3600s",
+        "force_recovery": true
+      }
+    ]
+  }
+}
