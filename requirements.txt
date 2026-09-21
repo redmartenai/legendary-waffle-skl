@@ -1,0 +1,14 @@
+Django>=6.1,<6.2
+djangorestframework>=3.18
+djangorestframework-simplejwt>=5.5
+django-cors-headers>=4.9
+drf-spectacular>=0.30
+PyJWT>=2.10
+httpx>=0.28
+pillow>=11
+# Production database driver (SQLite is used when DATABASE_URL is not set)
+psycopg[binary]>=3.2
+# Tests
+pytest>=9
+pytest-django>=4.14
+websockets>=14  # scripts/watch_trip.py
