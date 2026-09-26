@@ -166,6 +166,11 @@ class Command(BaseCommand):
     def _reset(self):
         schools = School.objects.filter(code__in=DEMO_CODES)
         Notification.objects.filter(school__in=schools).delete()
+        # Refunds protect payments and payments protect invoices (RESTRICT), so clear them first.
+        from apps.fees.models import Payment, Refund
+
+        Refund.all_objects.filter(school__in=schools).delete()
+        Payment.all_objects.filter(school__in=schools).delete()
         org_ids = list(schools.values_list("organization_id", flat=True))
         schools.delete()
         Organization.objects.filter(id__in=org_ids).delete()

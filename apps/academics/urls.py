@@ -8,6 +8,7 @@ urlpatterns = [
     path("students/<uuid:student_id>/summary", views.StudentSummaryView.as_view()),
     path("students/<uuid:student_id>/timetable", views.StudentTimetableView.as_view()),
     path("students/<uuid:student_id>/remarks", views.StudentRemarksView.as_view()),
+    path("remarks/<uuid:remark_id>/ack", views.RemarkAckView.as_view()),
     path("teacher/classes", views.TeacherClassesView.as_view()),
     path("teacher/today", views.TeacherTodayView.as_view()),
 ]

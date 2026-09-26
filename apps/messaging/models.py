@@ -47,7 +47,10 @@ class ConversationMember(SchoolScopedModel):
 class Message(SchoolScopedModel):
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
-    body = models.TextField(max_length=2000)
+    body = models.TextField(max_length=2000, blank=True)
+    attachment = models.FileField(upload_to="chat/%Y/%m/", blank=True)
+    attachment_name = models.CharField(max_length=120, blank=True)
+    attachment_size = models.PositiveIntegerField(default=0)
     client_id = models.CharField(max_length=64)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
@@ -58,3 +61,23 @@ class Message(SchoolScopedModel):
             # The app generates client_id before sending, so retries never duplicate a message.
             models.UniqueConstraint(fields=["conversation", "client_id"], name="uniq_message_client_id")
         ]
+
+
+class Meeting(SchoolScopedModel):
+    """A parent–teacher meeting slot booked inside a conversation."""
+
+    class Status(models.TextChoices):
+        REQUESTED = "requested", "Requested"
+        BOOKED = "booked", "Booked"
+        CANCELLED = "cancelled", "Cancelled"
+
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="meetings")
+    title = models.CharField(max_length=120)
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    location = models.CharField(max_length=80, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.BOOKED)
+    booked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+")
+
+    class Meta:
+        ordering = ["starts_at"]

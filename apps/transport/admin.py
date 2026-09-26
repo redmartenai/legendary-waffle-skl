@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Route, Stop, StudentTransport, Trip, TripIncident, Vehicle
+from .models import Route, Stop, StudentTransport, TransportException, Trip, TripIncident, Vehicle
 
 
 class ScopedAdmin(admin.ModelAdmin):
@@ -43,3 +43,9 @@ class TripIncidentAdmin(ScopedAdmin):
 @admin.register(StudentTransport)
 class StudentTransportAdmin(ScopedAdmin):
     list_display = ("student", "route", "pickup_stop", "drop_stop", "is_active")
+
+
+@admin.register(TransportException)
+class TransportExceptionAdmin(ScopedAdmin):
+    list_display = ("kind", "route", "status", "occurred_at")
+    list_filter = ("kind", "status")

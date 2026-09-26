@@ -91,6 +91,8 @@ def family_contacts(request) -> list[dict]:
                     "student": {"id": str(kid.id), "name": kid.full_name, "first_name": kid.first_name},
                 }
             )
+        if kid.user_id == request.user.id and Role.PARENT not in request.roles:
+            continue  # students message their teachers; office teams are for parents
         has_bus = StudentTransport.objects.filter(student=kid, is_active=True).exists()
         for department in FAMILY_DEPARTMENTS:
             if department == Department.TRANSPORT and not has_bus:
@@ -129,3 +131,37 @@ def guardian_users(student: Student) -> list:
         for link in StudentGuardian.objects.filter(student=student).select_related("user")
         if link.user.is_active
     ]
+
+
+COLLEAGUE_ROLES = (Role.TEACHER, Role.PRINCIPAL, Role.ADMIN, Role.ACCOUNTANT, Role.TRANSPORT_MANAGER)
+
+
+def staff_label(user) -> str:
+    """How a colleague is described to other staff: their subjects, or their role."""
+    subjects = sorted({a.subject.name for a in TeachingAssignment.objects.filter(teacher=user).select_related("subject")})
+    if subjects:
+        return ", ".join(subjects[:2])
+    membership = Membership.objects.filter(user=user, is_active=True, role__in=COLLEAGUE_ROLES).first()
+    return Role(membership.role).label if membership else "Staff"
+
+
+def staff_contacts(request) -> list[dict]:
+    """Colleagues a staff member may message."""
+    seen, contacts = set(), []
+    for m in (
+        Membership.objects.filter(is_active=True, role__in=COLLEAGUE_ROLES)
+        .exclude(user=request.user)
+        .select_related("user")
+        .order_by("user__full_name")
+    ):
+        if m.user_id in seen or not m.user.is_active:
+            continue
+        seen.add(m.user_id)
+        contacts.append(
+            {"kind": "colleague", "user_id": str(m.user_id), "name": m.user.full_name, "initials": m.user.initials, "subtitle": staff_label(m.user), "student": None}
+        )
+    return contacts
+
+
+def is_colleague(request, user_id) -> bool:
+    return any(c["user_id"] == str(user_id) for c in staff_contacts(request))

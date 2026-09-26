@@ -1,5 +1,8 @@
 from decimal import Decimal
 
+from django.db.models import Q
+from django.utils import timezone
+
 from django.http import Http404
 from rest_framework import serializers, status
 from rest_framework.exceptions import PermissionDenied
@@ -31,14 +34,59 @@ def student_card(student: Student) -> dict:
             "short_label": student.class_group.short_label,
         },
         "photo_url": student.photo_url or None,
+        "house": student.house or None,
     }
 
 
 class ParentChildrenView(SchoolAPIView):
+    """A parent's children. `?detail=1` adds each child's day, month, latest exam, bus and fees (My Children)."""
+
     allowed_roles = frozenset({Role.PARENT})
 
     def get(self, request):
-        return Response({"children": [student_card(s) for s in children_of(request.user)]})
+        children = list(children_of(request.user))
+        if request.query_params.get("detail") != "1":
+            return Response({"children": [student_card(s) for s in children]})
+        return Response({"children": [child_detail(s, school_today(request.school)) for s in children]})
+
+
+def child_detail(student: Student, today) -> dict:
+    from apps.attendance.services import student_month
+    from apps.fees.models import FeeInvoice
+    from apps.results.services import student_results
+    from apps.transport.models import StudentTransport
+
+    from .today import check_in
+
+    month = student_month(student, today.year, today.month, today)["summary"]
+    results = student_results(student)
+    latest = results["exams"][0] if results["exams"] else None
+    ride = StudentTransport.objects.filter(student=student, is_active=True).select_related("route__vehicle", "drop_stop").first()
+    outstanding = [i for i in FeeInvoice.objects.filter(student=student) if i.balance > 0]
+    next_invoice = min(outstanding, key=lambda i: i.due_date) if outstanding else None
+    group = student.class_group
+    return {
+        **student_card(student),
+        "class_teacher": group.class_teacher.full_name if group.class_teacher else None,
+        "today": check_in(student, today),
+        "month": {"present": month["present"], "school_days": month["school_days"], "absent": month["absent"], "late": month["late"]},
+        "latest_exam": {"name": latest["name"], "percent": latest["percent"], "grade": latest["grade"]} if latest else None,
+        "transport": {
+            "mode": "bus",
+            "bus": ride.route.vehicle.label if ride.route.vehicle else ride.route.name,
+            "stop": ride.drop_stop.name,
+        }
+        if ride
+        else {"mode": "walking"},
+        "next_invoice": {
+            "id": str(next_invoice.id),
+            "title": next_invoice.title,
+            "amount": str(next_invoice.balance),
+            "due_date": next_invoice.due_date.isoformat(),
+        }
+        if next_invoice
+        else None,
+    }
 
 
 class StudentSelfView(SchoolAPIView):
@@ -48,7 +96,31 @@ class StudentSelfView(SchoolAPIView):
         student = Student.objects.filter(user=request.user, is_active=True).select_related("class_group").first()
         if student is None:
             raise Http404
-        return Response(student_card(student))
+        return Response({**student_card(student), "id_card": id_card(student)})
+
+
+def id_card(student: Student) -> dict:
+    """What the student ID card shows: house, date of birth, bus, validity, principal."""
+    from apps.accounts.models import Membership
+    from apps.transport.models import StudentTransport
+
+    from .models import AcademicYear
+
+    ride = StudentTransport.objects.filter(student=student, is_active=True).select_related("route", "drop_stop").first()
+    year = AcademicYear.objects.filter(is_current=True).first()
+    principal = Membership.objects.filter(school=student.school, role=Role.PRINCIPAL, is_active=True).select_related("user").first()
+    guardians = [g.user.full_name for g in student.guardian_links.select_related("user").filter(is_primary=True)]
+    return {
+        "house": student.house or None,
+        "date_of_birth": student.date_of_birth.isoformat() if student.date_of_birth else None,
+        "bus": {"route": ride.route.name, "stop": ride.drop_stop.name} if ride else None,
+        "valid_till": year.ends_on.isoformat() if year else None,
+        "academic_year": year.name if year else None,
+        "principal": principal.user.full_name if principal else None,
+        "guardian": guardians[0] if guardians else None,
+        # The gate scanner looks the student up by this; it holds no personal data.
+        "qr": f"EDUFLOW:{student.school.code}:{student.id}",
+    }
 
 
 class StudentSummaryView(SchoolAPIView):
@@ -76,9 +148,28 @@ class StudentSummaryView(SchoolAPIView):
             if h.id not in submitted
         ]
 
-        remark = Remark.objects.filter(student=student).select_related("author").first()
+        remark = Remark.objects.filter(student=student, visibility=Remark.Visibility.FAMILY).select_related("author").first()
         results = student_results(student)
         latest = results["exams"][0] if results["exams"] else None
+
+        from apps.announcements.models import Announcement
+        from apps.fees.models import FeeInvoiceItem
+
+        from .today import check_in, day_ribbon, home_time
+
+        items = list(FeeInvoiceItem.objects.filter(invoice=next_invoice)) if next_invoice else []
+        now = timezone.now()
+        event = (
+            Announcement.objects.filter(
+                event_starts_at__gte=now,
+                published_at__lte=now,
+                audience__in=[Announcement.Audience.EVERYONE, Announcement.Audience.FAMILIES, Announcement.Audience.CLASSES],
+            )
+            .filter(Q(audience__in=[Announcement.Audience.EVERYONE, Announcement.Audience.FAMILIES]) | Q(class_groups=student.class_group))
+            .order_by("event_starts_at")
+            .distinct()
+            .first()
+        )
 
         return Response(
             {
@@ -102,12 +193,40 @@ class StudentSummaryView(SchoolAPIView):
                 },
                 "bus": student_bus_summary(student),
                 "latest_remark": {
+                    "id": str(remark.id),
                     "body": remark.body,
                     "tone": remark.tone,
                     "author": remark.author.full_name,
+                    "author_id": str(remark.author_id),
+                    "author_initials": remark.author.initials,
                     "created_at": remark.created_at.isoformat(),
                 }
                 if remark
+                else None,
+                "today": {
+                    "check_in": check_in(student, today),
+                    "ribbon": day_ribbon(student, today),
+                    "home": home_time(student, today),
+                },
+                "next_invoice": {
+                    "id": str(next_invoice.id),
+                    "title": next_invoice.title,
+                    "amount": str(next_invoice.balance),
+                    "due_date": next_invoice.due_date.isoformat(),
+                    "heads": [i.head for i in items],
+                }
+                if next_invoice
+                else None,
+                "next_event": {
+                    "id": str(event.id),
+                    "title": event.title,
+                    "body": event.body,
+                    "kind": event.kind,
+                    "starts_at": event.event_starts_at.isoformat(),
+                    "ends_at": event.event_ends_at.isoformat() if event.event_ends_at else None,
+                    "location": event.location,
+                }
+                if event
                 else None,
                 "latest_result": {"exam": latest["name"], "percent": latest["percent"], "grade": latest["grade"]}
                 if latest
@@ -133,9 +252,12 @@ def _timetable_for(group: ClassGroup, today) -> dict:
                 "starts_at": slot.starts_at.strftime("%H:%M"),
                 "ends_at": slot.ends_at.strftime("%H:%M"),
                 "subject": slot.subject.name,
+                "short": slot.subject.short_name,
+                "code": slot.subject.code,
                 "color": slot.subject.color,
                 "teacher": slot.teacher.full_name if slot.teacher else None,
                 "room": slot.room,
+                "note": slot.note,
             }
         )
     return {
@@ -148,26 +270,53 @@ def _timetable_for(group: ClassGroup, today) -> dict:
 class RemarkSerializer(serializers.Serializer):
     body = serializers.CharField(max_length=1000)
     tone = serializers.ChoiceField(choices=["positive", "concern", "info"], default="positive")
+    visibility = serializers.ChoiceField(choices=Remark.Visibility.choices, default=Remark.Visibility.FAMILY)
+    homework_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+FAMILY_ONLY = frozenset({Role.PARENT, Role.STUDENT})
+
+
+def remark_payload(remark: Remark, acks: dict, subjects: dict, class_teacher_id=None) -> dict:
+    ack = acks.get(remark.id)
+    return {
+        "id": str(remark.id),
+        "body": remark.body,
+        "tone": remark.tone,
+        "visibility": remark.visibility,
+        "author": remark.author.full_name,
+        "author_id": str(remark.author_id),
+        "author_initials": remark.author.initials,
+        "author_subject": subjects.get(remark.author_id),
+        "author_is_class_teacher": remark.author_id == class_teacher_id,
+        "created_at": remark.created_at.isoformat(),
+        "requires_ack": remark.requires_ack,
+        "acknowledged_at": ack.isoformat() if ack else None,
+        "homework": {"id": str(remark.homework_id), "title": remark.homework.title, "due_date": remark.homework.due_date.isoformat()}
+        if remark.homework_id
+        else None,
+    }
 
 
 class StudentRemarksView(SchoolAPIView):
     def get(self, request, student_id):
+        from .models import RemarkAck
+
         student = student_for_request(request, student_id)
-        remarks = Remark.objects.filter(student=student).select_related("author")[:30]
-        return Response(
-            {
-                "items": [
-                    {
-                        "id": str(r.id),
-                        "body": r.body,
-                        "tone": r.tone,
-                        "author": r.author.full_name,
-                        "created_at": r.created_at.isoformat(),
-                    }
-                    for r in remarks
-                ]
-            }
-        )
+        remarks = Remark.objects.filter(student=student).select_related("author", "homework")
+        # Families never see staff-only notes.
+        if request.roles & FAMILY_ONLY and not request.roles - FAMILY_ONLY:
+            remarks = remarks.filter(visibility=Remark.Visibility.FAMILY)
+        remarks = list(remarks[:30])
+        acks = {
+            a.remark_id: a.created_at
+            for a in RemarkAck.objects.filter(remark__in=remarks, user=request.user)
+        }
+        subjects: dict = {}
+        for a in TeachingAssignment.objects.filter(class_group=student.class_group).select_related("subject"):
+            subjects.setdefault(a.teacher_id, a.subject.name)
+        teacher_id = student.class_group.class_teacher_id
+        return Response({"items": [remark_payload(r, acks, subjects, teacher_id) for r in remarks]})
 
     def post(self, request, student_id):
         if not (request.roles & ({Role.TEACHER} | MANAGEMENT_ROLES)):
@@ -175,7 +324,17 @@ class StudentRemarksView(SchoolAPIView):
         student = student_for_request(request, student_id)
         data = RemarkSerializer(data=request.data)
         data.is_valid(raise_exception=True)
-        remark = Remark.objects.create(student=student, author=request.user, **data.validated_data)
+        fields = dict(data.validated_data)
+        homework_id = fields.pop("homework_id", None)
+        remark = Remark.objects.create(
+            student=student,
+            author=request.user,
+            homework_id=homework_id,
+            requires_ack=fields["tone"] == "concern",
+            **fields,
+        )
+        if remark.visibility == Remark.Visibility.STAFF:
+            return Response({"id": str(remark.id)}, status=status.HTTP_201_CREATED)
         notify(
             list(guardians_of([student]).keys()),
             school=request.school,
@@ -186,6 +345,22 @@ class StudentRemarksView(SchoolAPIView):
             dedupe_key=f"remark:{remark.id}",
         )
         return Response({"id": str(remark.id)}, status=status.HTTP_201_CREATED)
+
+
+class RemarkAckView(SchoolAPIView):
+    """A family member confirms they have read a remark."""
+
+    allowed_roles = FAMILY_ONLY
+
+    def post(self, request, remark_id):
+        from .models import RemarkAck
+
+        remark = Remark.objects.filter(id=remark_id, visibility=Remark.Visibility.FAMILY).first()
+        if remark is None:
+            raise Http404
+        student_for_request(request, remark.student_id)
+        ack, _ = RemarkAck.objects.get_or_create(remark=remark, user=request.user)
+        return Response({"id": str(remark.id), "acknowledged_at": ack.created_at.isoformat()})
 
 
 class TeacherClassesView(SchoolAPIView):
