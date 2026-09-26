@@ -12,3 +12,6 @@ psycopg[binary]>=3.2
 pytest>=9
 pytest-django>=4.14
 websockets>=14  # scripts/watch_trip.py
+reportlab>=4.2
+openpyxl>=3.1  # console report exports (XLSX)
+django-storages[s3]>=1.14

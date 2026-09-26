@@ -31,7 +31,8 @@ from .models import (
     Vehicle,
 )
 
-ALERT_CHOICES = (5, 10, 15, 20)
+# 0 turns the "bus is near" alert off; delay and safety alerts still come.
+ALERT_CHOICES = (0, 5, 10, 15, 20)
 
 
 def _trip_or_404(trip_id) -> Trip:
@@ -85,7 +86,17 @@ class StudentTransportView(SchoolAPIView):
                 "my_stop_eta_seconds": None,
                 "signal": "none",
                 "next_stop": None,
+                "started_at": trip.started_at.isoformat() if trip.started_at else None,
+                "ended_at": trip.ended_at.isoformat() if trip.ended_at else None,
+                # This child's own taps on the roster: when they got on and off.
+                "boarded_at": None,
+                "dropped_at": None,
             }
+            for event in BoardingEvent.objects.filter(trip=trip, student=student):
+                if event.kind == BoardingEvent.Kind.BOARDED:
+                    entry["boarded_at"] = event.at.isoformat()
+                elif event.kind == BoardingEvent.Kind.DROPPED:
+                    entry["dropped_at"] = event.at.isoformat()
             if trip.status == Trip.Status.ACTIVE:
                 live = services.live_state(trip)
                 mine = next((s for s in live["stops"] if s["id"] == str(my_stop.id)), None)
@@ -109,7 +120,11 @@ class StudentTransportView(SchoolAPIView):
                 "crew": {
                     "driver": route.driver.first_name if route.driver else None,
                     "attendant": route.attendant.first_name if route.attendant else None,
+                    "driver_name": route.driver.full_name if route.driver else None,
+                    "attendant_name": route.attendant.full_name if route.attendant else None,
                 },
+                # Families never get the crew's own numbers: calls go through the school's transport desk.
+                "call_number": (request.school.settings or {}).get("contacts", {}).get("transport"),
                 "pickup_stop": _stop_payload(
                     assignment.pickup_stop,
                     _offset_time(route.pickup_start, assignment.pickup_stop.pickup_offset_min),

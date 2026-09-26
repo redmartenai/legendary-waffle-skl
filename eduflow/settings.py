@@ -8,7 +8,7 @@ loaded from backend/.env). Defaults are safe for local development only.
 import os
 from datetime import timedelta
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -67,11 +67,19 @@ INSTALLED_APPS = [
     "apps.homework",
     "apps.fees",
     "apps.results",
+    "apps.documents",
+    "apps.learning",
+    "apps.staff",
+    "apps.approvals",
+    "apps.admissions",
+    "apps.principal",
     "apps.announcements",
     "apps.transport",
     "apps.messaging",
     "apps.notifications",
     "apps.realtime",
+    "apps.reports",
+    "apps.platform",
 ]
 
 MIDDLEWARE = [
@@ -108,19 +116,37 @@ WSGI_APPLICATION = "eduflow.wsgi.application"
 ASGI_APPLICATION = "eduflow.asgi.application"
 
 
-def _database_from_url(url: str) -> dict:
+def _database_from_url(url: str, schema: str = "") -> dict:
+    """``postgres://user:pass@host:port/name?sslmode=require`` → a Django database dict.
+
+    Query parameters become libpq options. Supabase hosts always get ``sslmode=require``. ``schema`` puts
+    Django's tables in their own Postgres schema (Supabase exposes ``public`` through its REST API, and
+    tenancy is enforced by Django, so the tables must not live there).
+    """
     parsed = urlparse(url)
     if parsed.scheme not in {"postgres", "postgresql"}:
         raise ValueError("DATABASE_URL must be a postgres:// URL")
-    return {
+    options = dict(parse_qsl(parsed.query))
+    host = parsed.hostname or "localhost"
+    if host.endswith((".supabase.co", ".supabase.com")):
+        options.setdefault("sslmode", "require")
+    if schema:
+        options["options"] = f"-c search_path={schema}"
+    config = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": parsed.path.lstrip("/"),
         "USER": parsed.username or "",
         "PASSWORD": parsed.password or "",
-        "HOST": parsed.hostname or "localhost",
+        "HOST": host,
         "PORT": str(parsed.port or 5432),
         "CONN_MAX_AGE": 60,
+        "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": options,
     }
+    # Supabase's transaction pooler (port 6543) can't keep server-side cursors open between statements.
+    if parsed.port == 6543:
+        config["DISABLE_SERVER_SIDE_CURSORS"] = True
+    return config
 
 
 # SQLite is for local development only. The API server, trip simulator and monitor write at the
@@ -136,9 +162,16 @@ _SQLITE = {
     },
 }
 
-DATABASES = {"default": _database_from_url(env("DATABASE_URL")) if env("DATABASE_URL") else _SQLITE}
+DATABASE_SCHEMA = env("DATABASE_SCHEMA") if env("DATABASE_URL") else ""
+DATABASES = {"default": _database_from_url(env("DATABASE_URL"), DATABASE_SCHEMA) if env("DATABASE_URL") else _SQLITE}
+# The local SQLite file as a second, read-only source for `manage.py copy_sqlite_to_postgres`.
+if env("DATABASE_URL"):
+    DATABASES["sqlite"] = _SQLITE
 
 AUTH_USER_MODEL = "accounts.User"
+
+# Where people open the web app; used in invite links and credential slips.
+WEB_URL = env("WEB_URL", "http://localhost:8130").rstrip("/")
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
 ]
@@ -152,6 +185,29 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", str(BASE_DIR / "media")))
+
+# Uploads go to Supabase Storage (its S3-compatible API) when configured; otherwise to MEDIA_ROOT on disk.
+# The bucket is private: files are served through Django views or short-lived signed URLs.
+if env("SUPABASE_S3_ENDPOINT"):
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {
+                "bucket_name": env("SUPABASE_S3_BUCKET", "eduflow-media"),
+                "endpoint_url": env("SUPABASE_S3_ENDPOINT"),
+                "region_name": env("SUPABASE_S3_REGION"),
+                "access_key": env("SUPABASE_S3_ACCESS_KEY_ID"),
+                "secret_key": env("SUPABASE_S3_SECRET_ACCESS_KEY"),
+                "addressing_style": "path",
+                "signature_version": "s3v4",
+                "querystring_auth": True,
+                "querystring_expire": 3600,
+                "file_overwrite": False,
+                "default_acl": None,
+            },
+        },
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
 
 REST_FRAMEWORK = {
@@ -165,6 +221,8 @@ REST_FRAMEWORK = {
         "anon": "120/min",
         "otp_request": "10/hour",
         "otp_verify": "30/hour",
+        "password_login": "20/hour",
+        "invite": "30/hour",
         "ingest": "6000/min",
     },
 }

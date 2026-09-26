@@ -39,17 +39,28 @@ def resolve_school(request):
     return memberships[0].school, memberships
 
 
+class PasswordChangeRequired(PermissionDenied):
+    default_detail = "Set your own password first."
+    default_code = "password_change_required"
+
+
 class SchoolAPIView(APIView):
     """Authenticates, activates the tenant context and checks roles.
 
     Subclasses set ``allowed_roles`` to restrict who may call them. The school
     context is always cleared when the response is finalized.
+
+    Opt-in: ``permission = ("module", "action")`` (or a dict of those keyed by HTTP
+    method) also requires the school's role matrix to allow it (``apps.accounts.permissions``).
     """
 
     allowed_roles: frozenset[str] | None = None
+    permission: tuple[str, str] | dict[str, tuple[str, str]] | None = None
 
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
+        if getattr(request.user, "must_change_password", False):
+            raise PasswordChangeRequired()
         school, memberships = resolve_school(request)
         request.school = school
         request.memberships = memberships
@@ -57,6 +68,12 @@ class SchoolAPIView(APIView):
         self._school_token = activate_school(school)
         if self.allowed_roles is not None and not (request.roles & self.allowed_roles):
             raise PermissionDenied("This isn't available for your role.")
+        needed = self.permission.get(request.method) if isinstance(self.permission, dict) else self.permission
+        if needed:
+            from apps.accounts.permissions import has_permission
+
+            if not has_permission(request, *needed):
+                raise PermissionDenied("Your role doesn't have permission for this.")
 
     def finalize_response(self, request, response, *args, **kwargs):
         token = getattr(self, "_school_token", None)

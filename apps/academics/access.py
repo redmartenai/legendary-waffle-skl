@@ -1,7 +1,7 @@
 """Who may see which student. Every student-facing endpoint goes through here."""
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Q
+from django.db.models import F, Q
 from django.http import Http404
 
 from apps.accounts.models import MANAGEMENT_ROLES, Role
@@ -10,11 +10,12 @@ from .models import ClassGroup, Student, StudentGuardian, TeachingAssignment
 
 
 def children_of(user):
-    """Active students linked to this guardian in the current school."""
+    """Active students linked to this guardian in the current school, eldest first."""
     return (
         Student.objects.filter(is_active=True, guardian_links__user=user)
         .select_related("class_group")
         .distinct()
+        .order_by(F("date_of_birth").asc(nulls_last=True), "full_name")
     )
 
 

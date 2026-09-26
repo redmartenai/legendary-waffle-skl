@@ -226,6 +226,8 @@ class TripIncident(SchoolScopedModel):
         STOP_SKIPPED = "stop_skipped", "Stop skipped"
         SIGNAL_LOST = "signal_lost", "GPS signal lost"
         EMPTY_CHECK_MISSING = "empty_check_missing", "Bus-empty check not confirmed"
+        # The transport desk's note on why a bus is behind (details: {"reason": "Traffic at the ORR junction"}).
+        DELAY = "delay", "Running late"
 
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="incidents")
     kind = models.CharField(max_length=24, choices=Kind.choices)
@@ -250,3 +252,36 @@ class TripViewLog(SchoolScopedModel):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["trip", "user"], name="uniq_trip_view_log")]
+
+
+class TransportException(SchoolScopedModel):
+    """A pickup or drop that didn't go to plan, for the transport desk's list of the day."""
+
+    class Kind(models.TextChoices):
+        HELD = "held", "Held at pickup"
+        STOP_CHANGE = "stop_change", "Stop change"
+        NOT_SCANNED = "not_scanned", "Not scanned"
+        OFF_MANIFEST = "off_manifest", "Off manifest"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        RESOLVED = "resolved", "Resolved"
+
+    kind = models.CharField(max_length=14, choices=Kind.choices)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN)
+    # One student, or several (e.g. two riders who boarded without an ID scan).
+    students = models.ManyToManyField("academics.Student", blank=True, related_name="+")
+    route = models.ForeignKey(Route, null=True, blank=True, on_delete=models.CASCADE, related_name="exceptions")
+    trip = models.ForeignKey(Trip, null=True, blank=True, on_delete=models.SET_NULL, related_name="exceptions")
+    # A stop change: from the usual stop to today's.
+    from_stop = models.ForeignKey(Stop, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    to_stop = models.ForeignKey(Stop, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    note = models.CharField(max_length=200, blank=True)
+    occurred_at = models.DateTimeField()
+    reported_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        ordering = ["-occurred_at"]
+        indexes = [models.Index(fields=["school", "occurred_at"], name="transport_exc_day_idx")]

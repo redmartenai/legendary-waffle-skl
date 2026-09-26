@@ -5,6 +5,7 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import Throttled, ValidationError
 
@@ -22,11 +23,11 @@ def _config():
 
 def _hash_code(challenge_phone: str, school_id, code: str) -> str:
     key = settings.SECRET_KEY.encode()
-    message = f"{school_id}:{challenge_phone}:{code}".encode()
+    message = f"{school_id or ''}:{challenge_phone}:{code}".encode()
     return hmac.new(key, message, hashlib.sha256).hexdigest()
 
 
-def send_sms_otp(school, phone: str, code: str) -> None:
+def send_sms_otp(school, phone: str, code: str) -> None:  # school may be None (phone-first sign-in)
     """Send the sign-in code through the school's DLT-registered SMS sender.
 
     Each school registers its own principal entity and sender ID (TRAI DLT);
@@ -34,14 +35,16 @@ def send_sms_otp(school, phone: str, code: str) -> None:
     plugs in here. In development the code is only logged.
     """
     masked = phone[-4:].rjust(len(phone), "•")
+    where = school.code if school else "EduFlow"
     if _config()["OTP_DEV_ECHO"]:
-        logger.info("OTP for %s at %s: %s", masked, school.code, code)
+        logger.info("OTP for %s at %s: %s", masked, where, code)
         return
     # Never write a live code to the logs: anyone who can read them could sign in as that user.
-    logger.error("No SMS provider configured: sign-in code for %s at %s was not sent", masked, school.code)
+    logger.error("No SMS provider configured: sign-in code for %s at %s was not sent", masked, where)
 
 
 def request_otp(school, raw_phone: str, ip: str | None = None) -> tuple[OtpChallenge, str | None]:
+    """Create a sign-in code. `school=None` is phone-first: any school the number belongs to."""
     try:
         phone = normalize_phone(raw_phone)
     except ValueError as exc:
@@ -53,15 +56,18 @@ def request_otp(school, raw_phone: str, ip: str | None = None) -> tuple[OtpChall
         raise Throttled(wait=3600, detail="Too many codes requested. Try again later.")
 
     with unscoped():
-        is_member = Membership.all_objects.filter(
-            school=school, user__phone=phone, user__is_active=True, is_active=True
-        ).exists()
+        members = Membership.all_objects.filter(
+            user__phone=phone, user__is_active=True, is_active=True, school__is_active=True
+        )
+        if school is not None:
+            members = members.filter(school=school)
+        is_member = members.exists()
 
     code = f"{secrets.randbelow(10**6):06d}"
     challenge = OtpChallenge.objects.create(
         school=school,
         phone=phone,
-        code_hash=_hash_code(phone, school.id, code),
+        code_hash=_hash_code(phone, school.id if school else None, code),
         expires_at=timezone.now() + timedelta(seconds=_config()["OTP_TTL_SECONDS"]),
         request_ip=ip,
     )
@@ -90,16 +96,10 @@ def verify_otp(challenge_id, code: str) -> User:
         raise invalid
 
     with unscoped():
-        user = (
-            User.objects.filter(
-                phone=challenge.phone,
-                is_active=True,
-                memberships__school=challenge.school,
-                memberships__is_active=True,
-            )
-            .distinct()
-            .first()
-        )
+        users = User.objects.filter(phone=challenge.phone, is_active=True, memberships__is_active=True)
+        if challenge.school_id:
+            users = users.filter(memberships__school=challenge.school)
+        user = users.distinct().first()
     if user is None:
         challenge.save(update_fields=["attempts", "updated_at"])
         raise invalid
@@ -107,3 +107,31 @@ def verify_otp(challenge_id, code: str) -> User:
     challenge.consumed_at = timezone.now()
     challenge.save(update_fields=["attempts", "consumed_at", "updated_at"])
     return user
+
+
+def authenticate_password(identifier: str, password: str, school=None) -> User:
+    """Email-or-phone + password sign-in (the Principal web app). One generic error for every failure."""
+    invalid = ValidationError({"password": "That email, number or password isn't right."})
+    identifier = (identifier or "").strip()
+    if not identifier or not password:
+        raise invalid
+    with unscoped():
+        if school is not None:
+            users = User.objects.filter(is_active=True, memberships__is_active=True, memberships__school__is_active=True, memberships__school=school)
+        else:
+            # Anyone with an active school, or EduFlow platform staff (who belong to no school).
+            users = User.objects.filter(is_active=True).filter(
+                Q(memberships__is_active=True, memberships__school__is_active=True) | Q(is_staff=True)
+            )
+        if "@" in identifier:
+            users = users.filter(email__iexact=identifier)
+        else:
+            try:
+                users = users.filter(phone=normalize_phone(identifier))
+            except ValueError:
+                raise invalid from None
+        candidates = list(users.distinct()[:2])
+    # An email shared by two accounts is ambiguous: refuse rather than guess.
+    if len(candidates) != 1 or not candidates[0].has_usable_password() or not candidates[0].check_password(password):
+        raise invalid
+    return candidates[0]

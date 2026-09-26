@@ -14,6 +14,9 @@ from .policy import office_hours_of, office_hours_open
 MAX_MESSAGE_LENGTH = 2000
 
 
+MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+
+
 def message_payload(message: Message, viewer_id=None) -> dict:
     sender = message.sender
     return {
@@ -25,6 +28,26 @@ def message_payload(message: Message, viewer_id=None) -> dict:
         "created_at": message.created_at.isoformat(),
         "sender": {"id": str(sender.id), "name": sender.full_name, "initials": sender.initials},
         "mine": viewer_id is not None and sender.id == viewer_id,
+        "attachment": {
+            "name": message.attachment_name or message.attachment.name.rsplit("/", 1)[-1],
+            "size": message.attachment_size,
+            "download": f"/chat/messages/{message.id}/file",
+        }
+        if message.attachment and not message.deleted_at
+        else None,
+    }
+
+
+def meeting_payload(meeting) -> dict:
+    return {
+        "id": str(meeting.id),
+        "title": meeting.title,
+        "starts_at": meeting.starts_at.isoformat(),
+        "ends_at": meeting.ends_at.isoformat(),
+        "location": meeting.location,
+        "status": meeting.status,
+        "created_at": meeting.created_at.isoformat(),
+        "calendar": f"/meetings/{meeting.id}.ics",
     }
 
 
@@ -44,6 +67,22 @@ def get_or_create_direct(family_user, staff_user, student, staff_label: str, fam
         ConversationMember.objects.create(
             conversation=conversation, user=staff_user, side=ConversationMember.Side.STAFF, label=staff_label
         )
+    return conversation
+
+
+def get_or_create_colleague(user, other, user_label: str, other_label: str) -> Conversation:
+    """A staff-to-staff chat (no child attached)."""
+    existing = (
+        Conversation.objects.filter(kind=Conversation.Kind.DIRECT, student__isnull=True, members__user=user)
+        .filter(members__user=other)
+        .first()
+    )
+    if existing:
+        return existing
+    with transaction.atomic():
+        conversation = Conversation.objects.create(kind=Conversation.Kind.DIRECT, student=None)
+        ConversationMember.objects.create(conversation=conversation, user=user, side=ConversationMember.Side.STAFF, label=user_label)
+        ConversationMember.objects.create(conversation=conversation, user=other, side=ConversationMember.Side.STAFF, label=other_label)
     return conversation
 
 
@@ -74,23 +113,28 @@ def get_or_create_department(family_user, department: str, student, family_label
     return conversation
 
 
-def send_message(conversation: Conversation, sender, body: str, client_id: str) -> tuple[Message, bool]:
+def send_message(conversation: Conversation, sender, body: str, client_id: str, attachment=None) -> tuple[Message, bool]:
     body = (body or "").strip()
-    if not body:
+    if not body and attachment is None:
         raise ValidationError({"body": "Type a message."})
+    if attachment is not None and attachment.size > MAX_ATTACHMENT_BYTES:
+        raise ValidationError({"attachment": "Files can be up to 10 MB."})
     if len(body) > MAX_MESSAGE_LENGTH:
         raise ValidationError({"body": f"Keep messages under {MAX_MESSAGE_LENGTH} characters."})
     if not client_id:
         raise ValidationError({"client_id": "Missing client id."})
 
     with transaction.atomic():
+        defaults = {"sender": sender, "body": body}
+        if attachment is not None:
+            defaults.update(attachment=attachment, attachment_name=attachment.name[:120], attachment_size=attachment.size)
         message, created = Message.objects.select_related("sender").get_or_create(
-            conversation=conversation, client_id=client_id, defaults={"sender": sender, "body": body}
+            conversation=conversation, client_id=client_id, defaults=defaults
         )
         if not created:
             return message, False  # retried send: same message, no duplicate alerts
         conversation.last_message_at = message.created_at
-        conversation.last_message_preview = body[:140]
+        conversation.last_message_preview = (body or f"📎 {message.attachment_name}")[:140]
         conversation.save(update_fields=["last_message_at", "last_message_preview", "updated_at"])
         ConversationMember.objects.filter(conversation=conversation, user=sender).update(last_read_at=message.created_at)
 
@@ -131,3 +175,35 @@ def mark_read(conversation: Conversation, user) -> None:
     Notification.objects.filter(
         user=user, category=Category.CHAT, read_at__isnull=True, data__conversation_id=str(conversation.id)
     ).update(read_at=now)
+
+
+def decide_meeting(meeting, user, action: str, starts_at=None):
+    """Staff answer a requested meeting: accept the parent's slot, or propose another time. The thread shows it."""
+    from datetime import datetime
+
+    from .models import Meeting
+
+    if meeting.status != Meeting.Status.REQUESTED:
+        raise ValidationError({"status": "This request has already been answered."})
+    if action == "accept":
+        meeting.status = Meeting.Status.BOOKED
+        meeting.booked_by = user
+        meeting.save(update_fields=["status", "booked_by", "updated_at"])
+        text = f"Confirmed: {meeting.title}, {timezone.localtime(meeting.starts_at):%a %d %b, %I:%M %p}".replace(" 0", " ")
+    elif action == "propose":
+        try:
+            starts = starts_at if isinstance(starts_at, datetime) else datetime.fromisoformat(str(starts_at))
+        except ValueError as exc:
+            raise ValidationError({"starts_at": "Pick a time."}) from exc
+        if timezone.is_naive(starts):
+            starts = timezone.make_aware(starts)
+        if starts <= timezone.now():
+            raise ValidationError({"starts_at": "Pick a time in the future."})
+        length = meeting.ends_at - meeting.starts_at
+        meeting.starts_at, meeting.ends_at = starts, starts + length
+        meeting.save(update_fields=["starts_at", "ends_at", "updated_at"])
+        text = f"Could we meet at {timezone.localtime(starts):%a %d %b, %I:%M %p} instead?".replace(" 0", " ")
+    else:
+        raise ValidationError({"action": "Accept or propose a time."})
+    send_message(meeting.conversation, user, text, client_id=f"meeting:{meeting.id}:{action}:{timezone.now().timestamp():.0f}")
+    return meeting
