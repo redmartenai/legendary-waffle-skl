@@ -81,21 +81,45 @@ def student_month(student: Student, year: int, month: int, today: date) -> dict:
         for s in AttendanceSession.objects.filter(class_group=student.class_group, date__range=(first, last))
     }
     exceptions = {
-        e.session_id: e.status
+        e.session_id: (e.status, e.note)
         for e in AttendanceException.objects.filter(student=student, session_id__in=sessions.values())
     }
+    from .models import LeaveApplication
+
+    leaves = list(
+        LeaveApplication.objects.filter(student=student, from_date__lte=last, to_date__gte=first).select_related("applied_by", "decided_by")
+    )
     days = []
     for offset in range((last - first).days + 1):
         day = date.fromordinal(first.toordinal() + offset)
+        note = ""
         if day in sessions:
-            status = exceptions.get(sessions[day], "present")
+            status, note = exceptions.get(sessions[day], ("present", ""))
         elif day > today:
             status = "upcoming"
         elif day.weekday() == 6:
             status = "holiday"
         else:
             status = "not_marked"
-        days.append({"date": day.isoformat(), "status": status})
+        leave = next((lv for lv in leaves if lv.from_date <= day <= lv.to_date), None)
+        days.append(
+            {
+                "date": day.isoformat(),
+                "status": status,
+                "note": note,
+                "leave": {
+                    "id": str(leave.id),
+                    "status": leave.status,
+                    "reason": leave.reason,
+                    "kind": leave.kind,
+                    "half_day": leave.half_day,
+                    "applied_by": leave.applied_by.full_name if leave.applied_by else None,
+                    "decided_by": leave.decided_by.full_name if leave.decided_by else None,
+                }
+                if leave
+                else None,
+            }
+        )
     marked = [d for d in days if d["status"] in {"present", "absent", "late", "half_day", "excused"}]
     present = sum(1 for d in marked if d["status"] in {"present", "late", "half_day"})
     return {
@@ -131,3 +155,16 @@ def student_today(student: Student, today: date) -> str:
         return "not_marked"
     exception = AttendanceException.objects.filter(session=session, student=student).first()
     return exception.status if exception else "present"
+
+
+def student_year(student: Student) -> dict:
+    """School days and days present since the academic year began ("71 of 76 · 93.4%")."""
+    year = AcademicYear.objects.filter(is_current=True).first()
+    sessions = AttendanceSession.objects.filter(class_group=student.class_group)
+    if year:
+        sessions = sessions.filter(date__gte=year.starts_on)
+    total = sessions.count()
+    absent = AttendanceException.objects.filter(
+        student=student, session__in=sessions, status__in=[AttendanceStatus.ABSENT, AttendanceStatus.EXCUSED]
+    ).count()
+    return {"school_days": total, "present": total - absent, "percent": round(100 * (total - absent) / total, 1) if total else None}

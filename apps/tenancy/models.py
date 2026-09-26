@@ -16,6 +16,8 @@ DEFAULT_POLICIES = {
         "share_live_location_with_parents": True,
     },
     "notifications": {"quiet_hours": ["21:00", "07:00"]},
+    # After this time, changing a register that's already marked needs the principal's approval.
+    "attendance": {"edit_cutoff": "10:00"},
 }
 
 

@@ -67,7 +67,9 @@ _PLAN_CACHE: dict = {}
 
 def route_plan(route: Route, direction: str) -> RoutePlan:
     """Geometry and stops in travel order. Afternoon drops run the route in reverse."""
-    stops = list(Stop.objects.filter(route=route).order_by("sequence"))
+    # Callers that prefetch "stops" (e.g. a whole fleet at once) save a query per route.
+    prefetched = getattr(route, "_prefetched_objects_cache", {}).get("stops")
+    stops = sorted(prefetched, key=lambda s: s.sequence) if prefetched is not None else list(Stop.objects.filter(route=route).order_by("sequence"))
     signature = (
         str(route.id),
         direction,
@@ -130,8 +132,11 @@ def ensure_trips_for_date(route: Route, service_date) -> list[Trip]:
 
 def ensure_today_trips(school) -> None:
     today = school_today(school)
+    have = set(Trip.objects.filter(service_date=today).values_list("route_id", "direction"))
     for route in Route.objects.filter(is_active=True):
-        ensure_trips_for_date(route, today)
+        # Only touch routes missing a trip: one query for the whole fleet on a normal day.
+        if (route.id, Direction.PICKUP) not in have or (route.id, Direction.DROP) not in have:
+            ensure_trips_for_date(route, today)
 
 
 @dataclass(frozen=True)
@@ -477,6 +482,8 @@ def _notify_approaching(trip: Trip, plan: RoutePlan, live: dict) -> None:
     }
     for user, stop_id, kids in _guardians_by_stop(active):
         threshold_min = max(prefs.get((user.id, kid.id), default_minutes) for kid in kids)
+        if threshold_min == 0:
+            continue  # this family turned the approach alert off
         eta = etas[stop_id]
         if eta > threshold_min * 60:
             continue

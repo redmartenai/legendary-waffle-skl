@@ -18,8 +18,33 @@ def school_public(school: School) -> dict:
         "kind": school.kind,
         "city": school.city,
         "branding": school.branding,
+        "campus": (school.settings or {}).get("campus"),
+        "address": (school.settings or {}).get("address"),
+        "contacts": (school.settings or {}).get("contacts") or {},
+        "academic_year": _current_year_name(school),
+        "term": _current_term(school),
         "languages": school.languages or ["en"],
     }
+
+
+def _current_term(school: School) -> str | None:
+    """The term running today, from `settings.terms` ([{name, starts_on, ends_on}])."""
+    from apps.core.utils import school_today
+
+    today = school_today(school).isoformat()
+    for term in (school.settings or {}).get("terms") or []:
+        if term.get("starts_on", "") <= today <= term.get("ends_on", ""):
+            return term.get("name")
+    return None
+
+
+def _current_year_name(school: School) -> str | None:
+    from apps.academics.models import AcademicYear
+    from apps.core.tenant import unscoped
+
+    with unscoped():
+        year = AcademicYear.all_objects.filter(school=school, is_current=True).values_list("name", flat=True).first()
+    return year
 
 
 class SchoolLookupView(APIView):

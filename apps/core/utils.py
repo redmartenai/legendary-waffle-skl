@@ -56,8 +56,12 @@ def time_in_window(moment: time, start: time, end: time) -> bool:
     return moment >= start or moment < end
 
 
+HONORIFICS = {"dr", "mr", "mrs", "ms", "prof", "smt", "shri"}
+
+
 def initials(name: str) -> str:
-    parts = [p for p in re.split(r"\s+", (name or "").strip()) if p and p[0].isalpha()]
+    # "Dr. Anita Rao" -> "AR": honorifics aren't part of the initials.
+    parts = [p for p in re.split(r"\s+", (name or "").strip()) if p and p[0].isalpha() and p.lower().rstrip(".") not in HONORIFICS]
     if not parts:
         return "?"
     if len(parts) == 1:

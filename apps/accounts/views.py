@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers, status
@@ -12,7 +14,7 @@ from apps.tenancy.models import School
 from apps.tenancy.views import school_public
 
 from .models import Membership, PushDevice
-from .services import request_otp, verify_otp
+from .services import authenticate_password, request_otp, verify_otp
 
 
 def _client_ip(request):
@@ -27,8 +29,24 @@ def user_payload(user) -> dict:
         "first_name": user.first_name,
         "initials": user.initials,
         "phone": user.phone,
+        "email": user.email or None,
         "language": user.language,
+        "preferences": preferences_of(user),
+        "platform": user.is_staff,
+        "must_change_password": user.must_change_password,
     }
+
+
+# Defaults for notification channels and attendance alerts; stored values override them.
+DEFAULT_PREFERENCES = {
+    "channels": {"push": True, "sms": True, "whatsapp": False, "email": True},
+    "alerts": {"not_in_by": True, "late_arrival": True},
+}
+
+
+def preferences_of(user) -> dict:
+    stored = user.preferences or {}
+    return {key: {**defaults, **(stored.get(key) or {})} for key, defaults in DEFAULT_PREFERENCES.items()}
 
 
 def memberships_payload(user) -> list[dict]:
@@ -54,7 +72,8 @@ def memberships_payload(user) -> list[dict]:
 
 
 class OtpRequestSerializer(serializers.Serializer):
-    school_code = serializers.CharField(max_length=16)
+    # Optional: without it the code signs the person in to every school they belong to.
+    school_code = serializers.CharField(max_length=16, required=False, allow_blank=True)
     phone = serializers.CharField(max_length=20)
 
 
@@ -72,14 +91,15 @@ class OtpRequestView(APIView):
     def post(self, request):
         data = OtpRequestSerializer(data=request.data)
         data.is_valid(raise_exception=True)
-        school = School.objects.filter(
-            code=data.validated_data["school_code"].strip().upper(), is_active=True
-        ).first()
-        if school is None:
-            return Response(
-                {"error": {"code": "not_found", "message": "We couldn't find that school."}},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        school = None
+        school_code = (data.validated_data.get("school_code") or "").strip().upper()
+        if school_code:
+            school = School.objects.filter(code=school_code, is_active=True).first()
+            if school is None:
+                return Response(
+                    {"error": {"code": "not_found", "message": "We couldn't find that school."}},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
         challenge, code = request_otp(school, data.validated_data["phone"], _client_ip(request))
         body = {
             "challenge_id": str(challenge.id),
@@ -101,17 +121,88 @@ class OtpVerifyView(APIView):
         data = OtpVerifySerializer(data=request.data)
         data.is_valid(raise_exception=True)
         user = verify_otp(data.validated_data["challenge_id"], data.validated_data["code"])
-        user.last_login = timezone.now()
-        user.save(update_fields=["last_login"])
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": user_payload(user),
-                "memberships": memberships_payload(user),
-            }
-        )
+        return Response(session_payload(user))
+
+
+# Without "keep me signed in", a web session ends after a working day.
+SHORT_REFRESH = timedelta(hours=12)
+
+
+def session_payload(user, remember: bool = True) -> dict:
+    user.last_login = timezone.now()
+    user.save(update_fields=["last_login"])
+    refresh = RefreshToken.for_user(user)
+    if not remember:
+        refresh.set_exp(lifetime=SHORT_REFRESH)
+    return {
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+        "user": user_payload(user),
+        "memberships": memberships_payload(user),
+    }
+
+
+class PasswordLoginSerializer(serializers.Serializer):
+    identifier = serializers.CharField(max_length=254)
+    password = serializers.CharField(max_length=128, trim_whitespace=False)
+    school_code = serializers.CharField(max_length=16, required=False, allow_blank=True)
+    remember = serializers.BooleanField(required=False, default=False)
+
+
+class PasswordLoginView(APIView):
+    """Email-or-phone + password sign-in, used by the Principal web app."""
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_login"
+
+    def post(self, request):
+        data = PasswordLoginSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        school = None
+        code = (data.validated_data.get("school_code") or "").strip().upper()
+        if code:
+            school = School.objects.filter(code=code, is_active=True).first()
+            if school is None:
+                return Response(
+                    {"error": {"code": "not_found", "message": "We couldn't find that school."}},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        user = authenticate_password(data.validated_data["identifier"], data.validated_data["password"], school)
+        return Response(session_payload(user, remember=data.validated_data["remember"]))
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current = serializers.CharField(max_length=128, trim_whitespace=False)
+    new = serializers.CharField(min_length=10, max_length=128, trim_whitespace=False)
+
+
+class PasswordChangeView(APIView):
+    """Replace a password: required after signing in with a temporary one."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_login"
+
+    def post(self, request):
+        data = PasswordChangeSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        user = request.user
+        if not user.check_password(data.validated_data["current"]):
+            raise serializers.ValidationError({"current": "That isn't your current password."})
+        new = data.validated_data["new"]
+        if new == data.validated_data["current"]:
+            raise serializers.ValidationError({"new": "Pick a password different from the temporary one."})
+        from django.contrib.auth.password_validation import validate_password
+
+        try:
+            validate_password(new, user)
+        except Exception as exc:  # django.core.exceptions.ValidationError
+            raise serializers.ValidationError({"new": list(getattr(exc, "messages", [str(exc)]))}) from None
+        user.set_password(new)
+        user.must_change_password = False
+        user.save(update_fields=["password", "must_change_password"])
+        return Response({"user": user_payload(user)})
 
 
 class MeView(APIView):
@@ -121,6 +212,20 @@ class MeView(APIView):
         return Response({"user": user_payload(request.user), "memberships": memberships_payload(request.user)})
 
     def patch(self, request):
+        prefs = request.data.get("preferences")
+        if prefs is not None:
+            if not isinstance(prefs, dict):
+                raise serializers.ValidationError({"preferences": "Send an object."})
+            merged = preferences_of(request.user)
+            for key, values in prefs.items():
+                if key not in DEFAULT_PREFERENCES or not isinstance(values, dict):
+                    raise serializers.ValidationError({"preferences": f"Unknown setting group: {key}."})
+                for name, value in values.items():
+                    if name not in DEFAULT_PREFERENCES[key] or not isinstance(value, bool):
+                        raise serializers.ValidationError({"preferences": f"Unknown or invalid setting: {key}.{name}."})
+                    merged[key][name] = value
+            request.user.preferences = merged
+            request.user.save(update_fields=["preferences"])
         language = request.data.get("language")
         if language:
             if language not in {"en", "hi", "te"}:

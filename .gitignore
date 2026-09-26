@@ -19,7 +19,9 @@ env/
 # Django
 db.sqlite3
 db.sqlite3-journal
+temp_auto_push.bat
 /media/
+/media-test/
 /staticfiles/
 *.log
 
@@ -37,7 +39,8 @@ centrifugo/centrifugo.exe
 
 # Editors / OS
 .idea/
-.vscode/
 *.swp
 .DS_Store
 Thumbs.db
+.gitignore
+branch_structure.json

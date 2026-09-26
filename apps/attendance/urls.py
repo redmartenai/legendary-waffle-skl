@@ -6,4 +6,5 @@ urlpatterns = [
     path("classes/<uuid:class_id>/roster", views.ClassRosterView.as_view()),
     path("classes/<uuid:class_id>/attendance", views.ClassAttendanceView.as_view()),
     path("students/<uuid:student_id>/attendance", views.StudentAttendanceView.as_view()),
+    path("students/<uuid:student_id>/leave", views.StudentLeaveView.as_view()),
 ]

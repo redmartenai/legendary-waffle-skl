@@ -35,6 +35,40 @@ def clean_photo(upload) -> ContentFile:
     return ContentFile(buffer.getvalue(), name=f"{uuid.uuid4().hex}.jpg")
 
 
+MAX_PDF_BYTES = 10 * 1024 * 1024
+
+
+def _is_pdf(upload) -> bool:
+    return (getattr(upload, "content_type", "") == "application/pdf") or upload.name.lower().endswith(".pdf")
+
+
+def clean_pdf(upload) -> ContentFile:
+    """A PDF is stored as-is (no re-encoding) after a size and signature check."""
+    if upload.size > MAX_PDF_BYTES:
+        raise ValidationError({"photos": "A PDF can be up to 10 MB."})
+    head = upload.read(5)
+    upload.seek(0)
+    if head != b"%PDF-":
+        raise ValidationError({"photos": "That file isn't a PDF."})
+    return ContentFile(upload.read(), name=f"{uuid.uuid4().hex}.pdf")
+
+
+def mark_done_in_notebook(homework: Homework, student: Student, user) -> HomeworkSubmission:
+    """No upload: the teacher checks the notebook in class."""
+    submission, created = HomeworkSubmission.objects.get_or_create(
+        homework=homework,
+        student=student,
+        defaults={"submitted_by": user, "submitted_at": timezone.now(), "in_notebook": True},
+    )
+    if not created and submission.status != HomeworkSubmission.Status.REVIEWED:
+        submission.in_notebook = True
+        submission.submitted_by = user
+        submission.submitted_at = timezone.now()
+        submission.status = HomeworkSubmission.Status.SUBMITTED
+        submission.save(update_fields=["in_notebook", "submitted_by", "submitted_at", "status", "updated_at"])
+    return submission
+
+
 def submit(homework: Homework, student: Student, user, photos: list, client_id: str = "") -> HomeworkSubmission:
     if not homework.accepts_photos:
         raise ValidationError({"photos": "This homework doesn't take photo submissions."})
@@ -42,7 +76,7 @@ def submit(homework: Homework, student: Student, user, photos: list, client_id: 
         raise ValidationError({"photos": "Add at least one photo."})
     if len(photos) > MAX_PHOTOS:
         raise ValidationError({"photos": f"Up to {MAX_PHOTOS} photos."})
-    cleaned = [clean_photo(p) for p in photos]
+    cleaned = [clean_pdf(p) if _is_pdf(p) else clean_photo(p) for p in photos]
 
     with transaction.atomic():
         submission, created = HomeworkSubmission.objects.get_or_create(
@@ -91,9 +125,9 @@ def review(submission: HomeworkSubmission, status: str, remark: str) -> Homework
     return submission
 
 
-def announce_new(homework: Homework) -> None:
+def announce_new(homework: Homework, *, parents: bool = True) -> None:
     students = list(Student.objects.filter(class_group=homework.class_group, is_active=True))
-    recipients = set(guardians_of(students).keys())
+    recipients = set(guardians_of(students).keys()) if parents else set()
     recipients.update(s.user for s in students if s.user)
     notify(
         recipients,

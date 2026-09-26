@@ -30,6 +30,11 @@ class HomeworkSubmission(SchoolScopedModel):
     submitted_at = models.DateTimeField()
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.SUBMITTED)
     teacher_remark = models.CharField(max_length=500, blank=True)
+    # Marked work: a grade or score ("B+", "18/20") and the teacher's checked copy.
+    grade = models.CharField(max_length=12, blank=True)
+    # "Done in my notebook": no upload, the teacher checks the notebook in class.
+    in_notebook = models.BooleanField(default=False)
+    checked_copy = models.FileField(upload_to="homework/checked/%Y/%m/", blank=True)
     client_id = models.CharField(max_length=64, blank=True)
 
     class Meta:
@@ -48,3 +53,26 @@ class SubmissionPhoto(SchoolScopedModel):
 
     class Meta:
         ordering = ["order"]
+
+
+class HomeworkAttachment(SchoolScopedModel):
+    """A worksheet or reference file the teacher attached to homework."""
+
+    homework = models.ForeignKey(Homework, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField(upload_to="homework/attachments/%Y/%m/")
+    name = models.CharField(max_length=120)
+    size = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["created_at"]
+
+
+class HomeworkSignoff(SchoolScopedModel):
+    """A parent signing the diary: "I have seen this homework"."""
+
+    homework = models.ForeignKey(Homework, on_delete=models.CASCADE, related_name="signoffs")
+    student = models.ForeignKey("academics.Student", on_delete=models.CASCADE, related_name="+")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["homework", "student"], name="uniq_homework_signoff")]
