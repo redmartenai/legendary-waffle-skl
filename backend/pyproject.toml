@@ -1,0 +1,98 @@
+[project]
+name = "eduflow-backend"
+version = "0.1.0"
+description = "EduFlow School Operating System: API backend (Django modular monolith)"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "django>=5.2,<5.3",
+    "djangorestframework>=3.16",
+    "drf-spectacular>=0.28",
+    "django-environ>=0.12",
+    "psycopg[binary]>=3.2",
+    "redis>=5.2",
+    "celery>=5.5",
+    "structlog>=25.1",
+    "django-storages[s3]>=1.14",
+    "boto3>=1.35",
+    "argon2-cffi>=23.1",
+    "gunicorn>=23.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+    "mypy>=1.14",
+    "django-stubs[compatible-mypy]>=5.1",
+    "djangorestframework-stubs[compatible-mypy]>=3.15",
+    "celery-types>=0.22",
+    "boto3-stubs[s3]>=1.35",
+    "pip-audit>=2.7",
+]
+
+[tool.uv]
+package = false
+
+# --------------------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+extend-exclude = ["**/migrations/*.py"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",   # pycodestyle / pyflakes
+    "I",             # isort
+    "B",             # bugbear
+    "UP",            # pyupgrade
+    "S",             # bandit (security)
+    "DJ",            # django
+    "SIM", "C4", "RET", "PIE", "PT", "DTZ", "T20", "ERA", "RUF",
+]
+ignore = [
+    "RUF012",  # mutable class attrs are idiomatic in Django/DRF
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S105", "S106", "S108", "S603", "S607"]
+"conftest.py" = ["S101"]
+
+# --------------------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+exclude = ["/migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["environ.*", "storages.*", "drf_spectacular.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["*.tests.*", "conftest"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+
+# --------------------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+addopts = "-ra --strict-markers"
+testpaths = ["eduflow"]
+filterwarnings = ["error::DeprecationWarning:eduflow.*"]
+
+[tool.coverage.run]
+source = ["eduflow", "config"]
+omit = ["*/migrations/*", "*/tests/*", "config/wsgi.py", "config/asgi.py"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true

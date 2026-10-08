@@ -1,0 +1,77 @@
+openapi: 3.1.0
+info:
+  title: EduFlow API
+  version: 1.0.0
+  description: EduFlow School Operating System API. See docs/api/conventions.md.
+paths:
+  /api/v1/health/live:
+    get:
+      operationId: health_live_retrieve
+      summary: Liveness probe
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+          description: ''
+  /api/v1/health/ready:
+    get:
+      operationId: health_ready_retrieve
+      summary: Readiness probe
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessStatus'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessStatus'
+          description: ''
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+      required:
+      - status
+    ReadinessStatus:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        checks:
+          type: object
+          additionalProperties:
+            enum:
+            - ok
+            - failed
+            type: string
+            description: |-
+              * `ok` - ok
+              * `failed` - failed
+      required:
+      - checks
+      - status
+    StatusEnum:
+      enum:
+      - ok
+      - unavailable
+      type: string
+      description: |-
+        * `ok` - ok
+        * `unavailable` - unavailable
