@@ -350,3 +350,35 @@ Option A, keeping the brief's stack, unless push to many concurrent bus trackers
     - `uploads`
 - **Response:** `429` with `retry_after_seconds`, which the client already handles.
 - **Edge:** limits at the edge (reverse proxy or WAF) are added at deployment, not in the app.
+
+## ADR-017: Local object storage is RustFS, because MinIO images are unavailable. *Accepted (Phase 1, deviation recorded)*
+
+**Context**
+
+- The brief says to use MinIO for development (ADR-009).
+- During Phase 1 (2026-10-08), official MinIO images could not be obtained:
+  - `docker pull minio/minio` returns "repository does not exist".
+  - `quay.io/minio/minio` returns `401 UNAUTHORIZED`.
+  - The `minio/mc` image is also unavailable.
+- MinIO stopped distributing community builds and images in 2025. Using MinIO now would mean building an unmaintained source tree ourselves.
+
+**Decision**
+
+- Local and CI object storage use **RustFS** (`rustfs/rustfs:1.0.1`, Apache-2.0, pinned by digest).
+  - RustFS is an S3-compatible server designed as a MinIO drop-in.
+  - It was verified for this project before adoption:
+    - a missing bucket returns 404;
+    - a created bucket is private, and anonymous reads return 403;
+    - presigned GET works;
+    - a wrong secret returns 403.
+- Bucket creation uses the backend's own `ensure_storage_bucket` command (boto3), not a vendor CLI.
+- **The application depends only on the S3 API** (`django-storages` S3 backend, boto3). Storage is selected by `STORAGE_ENDPOINT_URL` / `STORAGE_*` variables, so MinIO (if a licensed image becomes available), AWS S3, Cloudflare R2 or another S3-compatible service can replace RustFS without code changes.
+
+**Consequences**
+
+- Swapping the storage server is a Compose/infrastructure change only.
+- If the owner obtains MinIO images (for example, a commercial subscription), revert by changing the `storage` service image and its environment variable names.
+
+## ADR-011 follow-up: realtime remains open
+
+Per the owner's Phase 1 instruction, Centrifugo is **not** replaced and Channels is **not** introduced in Phase 1. A technical comparison and recommendation will be delivered before the realtime phase (Phase 9).

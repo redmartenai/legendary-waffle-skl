@@ -160,3 +160,17 @@ Users, authentication, tenancy and every domain model. Phase 1 creates **no** do
 - **API changes:** every API change updates the OpenAPI schema and `docs/api/`. Breaking changes need either a `/api/v2` path or a documented migration.
 - **Tests:** every new tenant-scoped endpoint is registered with the isolation-matrix test, and CI fails if one is not.
 - **Commands:** each phase report lists the files created and changed, the commands run, the test results, the remaining work, and the decisions taken.
+
+---
+
+## 5. Phase 1 status (2026-10-08)
+
+Implemented on branch `phase-1/foundation`. These are the deviations from the §3 proposal:
+
+| Item | Proposal | Actual | Reason |
+|---|---|---|---|
+| Object storage | MinIO | RustFS (S3-compatible) | MinIO images are no longer publicly available (ADR-017) |
+| Compose file | `infra/docker/docker-compose.yml` | `infra/docker/compose.yaml`, plus a root `compose.yaml` that includes it | Lets you run `docker compose up` from the repo root with the root `.env` |
+| Least-privilege database role | `infra/docker/postgres/init/` | Deferred to Phase 2 | Belongs with the append-only audit trigger and grants (ADR-015). Phase 1 has no domain tables. |
+| Prometheus metrics endpoint | Not in the §3 list | Not added | Observability is prepared through structured logs and request IDs. The metrics endpoint comes with the first deployed environment. |
+| Smoke test | Not listed | `scripts/smoke-test.sh`, run locally and in CI | Verifies the stack end to end, not just that containers start |
