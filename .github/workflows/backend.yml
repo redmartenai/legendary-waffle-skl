@@ -1,0 +1,132 @@
+name: backend
+
+on:
+  push:
+    branches: [main, "phase-*/**"]
+    paths: ["backend/**", "infra/**", "compose.yaml", ".env.example", "docs/api/openapi.yaml", ".github/workflows/backend.yml"]
+  pull_request:
+    paths: ["backend/**", "infra/**", "compose.yaml", ".env.example", "docs/api/openapi.yaml", ".github/workflows/backend.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+# Non-secret values used only by CI. CI never has access to real credentials.
+env:
+  DJANGO_SECRET_KEY: ci-only-not-secret-0123456789-abcdefghijklmnopqrstuvwxyz
+  DJANGO_READ_DOT_ENV: "false"
+  DATABASE_URL: postgres://eduflow:cionlypassword@127.0.0.1:5432/eduflow
+  REDIS_URL: redis://127.0.0.1:6379/0
+  CELERY_BROKER_URL: redis://127.0.0.1:6379/1
+  CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/2
+  UV_PYTHON_DOWNLOADS: never
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  quality:
+    name: format · lint · types · audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: { python-version-file: backend/.python-version }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { enable-cache: true, cache-dependency-glob: backend/uv.lock }
+      - name: Install (locked)
+        run: uv sync --locked
+      - name: Format
+        run: uv run ruff format --check .
+      - name: Lint
+        run: uv run ruff check --output-format=github .
+      - name: Type check
+        run: uv run mypy .
+      - name: Dependency audit
+        # Audits every installed (locked) package, dev tools included, against PyPI/OSV advisories.
+        run: uv run pip-audit --strict --progress-spinner off
+
+  test:
+    name: tests · migrations · deploy checks · schema
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17.11-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_DB: eduflow
+          POSTGRES_USER: eduflow
+          POSTGRES_PASSWORD: cionlypassword
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U eduflow -d eduflow" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: { python-version-file: backend/.python-version }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { enable-cache: true, cache-dependency-glob: backend/uv.lock }
+      - name: Install (locked)
+        run: uv sync --locked
+      - name: No missing migrations
+        run: uv run python manage.py makemigrations --check --dry-run
+        env: { DJANGO_SETTINGS_MODULE: config.settings.test }
+      - name: Migrations apply cleanly
+        run: uv run python manage.py migrate --noinput
+        env: { DJANGO_SETTINGS_MODULE: config.settings.test }
+      - name: Production deploy checks
+        run: uv run python manage.py check --deploy --fail-level WARNING
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.prod
+          DJANGO_SECRET_KEY: ${{ github.run_id }}-k9Qz7vR2mL5tW8yB3nH6pF1xJ4cD0sG9aE2uK7-${{ github.sha }}
+          DJANGO_ALLOWED_HOSTS: api.eduflow.example
+      - name: Tests (real PostgreSQL + Redis)
+        run: uv run pytest --cov --cov-report=term-missing --cov-report=xml
+      - name: OpenAPI schema is current
+        run: |
+          uv run python manage.py spectacular --file ../docs/api/openapi.yaml --validate --fail-on-warn
+          git diff --exit-code -- ../docs/api/openapi.yaml || {
+            echo "::error::docs/api/openapi.yaml is out of date. Run the schema export (docs/api/conventions.md) and commit it."
+            exit 1
+          }
+        env: { DJANGO_SETTINGS_MODULE: config.settings.test }
+
+  docker:
+    name: image build · compose smoke test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: Build production image
+        run: docker build --target runtime --tag eduflow-backend:ci backend
+      - name: Production image runs as non-root
+        run: test "$(docker image inspect eduflow-backend:ci --format '{{.Config.User}}')" = "app"
+      - name: Start the full stack
+        run: |
+          cp .env.example .env
+          docker compose up --build --detach --wait --wait-timeout 240
+      - name: Smoke test
+        run: scripts/smoke-test.sh
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+      - name: Tear down
+        if: always()
+        run: docker compose down --volumes --remove-orphans
