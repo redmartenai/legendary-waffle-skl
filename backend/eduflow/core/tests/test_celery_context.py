@@ -7,10 +7,15 @@ messages. The real broker round trip is verified by the Docker/CI smoke test (do
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from eduflow.core import celery_context
 from eduflow.core.logging import get_logger
 from eduflow.core.request_context import bind_request_id, clear_context, get_request_id
 from eduflow.core.tasks import ping
+
+# The task signals switch the database role (RLS context), so they need database access.
+pytestmark = pytest.mark.django_db
 
 
 def _as_task(fake: SimpleNamespace) -> Any:

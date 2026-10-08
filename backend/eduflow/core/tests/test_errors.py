@@ -1,6 +1,7 @@
 import pytest
 
-pytestmark = pytest.mark.urls("eduflow.core.tests.urls")
+# Requests run under the RLS database context (DatabaseContextMiddleware), so they touch the database.
+pytestmark = [pytest.mark.urls("eduflow.core.tests.urls"), pytest.mark.django_db]
 
 
 def _error(response):
