@@ -34,6 +34,22 @@ Membership(user, school, is_active) AND school.is_active ?
 - **Platform administrators get no implicit access.** They use `/platform/*`, which is separately guarded and audited.
 - **Tokens carry no school.** Switching schools is a header change; revoking a membership takes effect on the next request.
 
+## Adding members
+
+`POST /memberships` either creates an account or attaches an existing one. Identifiers that a school types in are not proof of anything, so:
+
+- **A school can attach an existing account only through a *verified* identifier.** Every email or phone that matched must be verified. Otherwise the answer is `409 conflict`, with one generic message for every such case.
+  - A phone becomes verified when its owner signs in with an OTP sent to it.
+  - Identifiers entered by platform staff (school onboarding, `create_platform_admin`) count as verified.
+  - Email verification arrives with the invite flow (Phase 4). Until then a school can attach existing accounts by phone only.
+- **A school cannot set a password** on the accounts it creates. They have no usable password and unverified identifiers; the person signs in by phone OTP and may then set a first password (`POST /auth/password/change` without `current_password`).
+- An existing account's profile is never edited by a school.
+- Adding members is rate-limited per admin (`member_create_user`, 60 per hour).
+
+Without these rules, school A could register a teacher's email or phone with a password it knows, and receive the access school B later grants that teacher (found in the Phase 2 security review).
+
+**Residual risk:** when a school attaches a *verified* account, the response shows that person's name and contact details, and the person becomes a member without consenting. The invite-and-accept flow (Phase 4) removes this; until then it is limited to school admins with `user.create`, rate-limited and audited.
+
 ## Queryset discipline
 
 The rules, in order of preference:

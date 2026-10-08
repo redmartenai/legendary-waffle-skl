@@ -22,6 +22,10 @@ The user model is a custom `AbstractBaseUser` (`AUTH_USER_MODEL = "identity.User
 - **Phone** is stored as E.164 (`+919812345678`) and is unique. A 10-digit national number gets the default country code `PHONE_DEFAULT_COUNTRY_CODE` (91), as the client assumes. Numbering-plan validation is not done; `eduflow/identity/phone.py` can be swapped for a library without changing callers.
 - **No usernames.** The client never had them, and they add an enumeration surface.
 
+### Verified identifiers
+
+`email_verified_at` and `phone_verified_at` record that the person proved control of an identifier (a successful OTP sign-in verifies the phone) or that platform staff entered it. Schools can attach existing accounts only through verified identifiers ([multitenancy.md](multitenancy.md#adding-members)). Email verification arrives with the invite flow.
+
 ### Active and inactive users
 
 - `User.is_active = false` (platform action, `PATCH /platform/users/{id}`) revokes every session at once. Every request checks the session and the user, so the user's current access tokens stop working immediately, not when they expire.
@@ -40,7 +44,7 @@ The password comes from the environment or a prompt, never from a command-line a
 
 ### Forced password change
 
-A user created with a `temporary_password` (school onboarding, adding a member) has `must_change_password = true`. Until they call `POST /auth/password/change`, every endpoint except `/me`, `/auth/password/change`, `/auth/logout*` and `/auth/sessions*` returns `403 password_change_required`.
+A user created by platform staff with a `temporary_password` (school onboarding) has `must_change_password = true`. Schools cannot set passwords on the accounts they create ([multitenancy.md](multitenancy.md#adding-members)). Until they call `POST /auth/password/change`, every endpoint except `/me`, `/auth/password/change`, `/auth/logout*` and `/auth/sessions*` returns `403 password_change_required`.
 
 ## Endpoints
 
@@ -52,7 +56,7 @@ A user created with a `temporary_password` (school onboarding, adding a member) 
 | `POST /auth/token/refresh` | refresh token, rate-limited | `{refresh}` → new `{access, refresh}` |
 | `POST /auth/logout` | access token | Revoke this session (and optionally the session of a given `refresh`) |
 | `POST /auth/logout-all` | access token | Revoke every session of the user |
-| `POST /auth/password/change` | access token, rate-limited | Revokes every *other* session |
+| `POST /auth/password/change` | access token, rate-limited | Revokes every *other* session. `current_password` may be omitted only by an account that has no password yet. |
 | `GET /auth/sessions`, `DELETE /auth/sessions/{id}` | access token | List and revoke your own sessions |
 | `GET /me` | access token | User plus active memberships with roles (no `X-School-Id` needed) |
 
@@ -78,7 +82,7 @@ Token mechanics (rotation, reuse detection, revocation) are in [token-lifecycle.
 
 | Situation | Response |
 |---|---|
-| Unknown identifier, wrong password, inactive account | Same `401 invalid_credentials`, same message. An unknown identifier still runs an Argon2 hash, so its timing matches a wrong password. |
+| Unknown identifier, wrong password, inactive account, account without a password | Same `401 invalid_credentials`, same message. Unknown identifiers and accounts without a password still run an Argon2 hash, so the timing matches a wrong password. |
 | OTP for a number with or without an account | Same `200` body. No SMS is sent without an account. |
 | Wrong, expired, used or locked OTP | Same `401 invalid_code` |
 | Any bad, expired or revoked token | Same `401 not_authenticated`. No reason is given. |
@@ -100,10 +104,11 @@ Redis-backed sliding windows (`eduflow/identity/throttles.py`, ADR-016). A block
 | `otp_verify_challenge` | 10 / 10 min | challenge ID (attempts are also capped at 5 per challenge) |
 | `password_change_user` | 5 / hour | user |
 | `school_lookup_ip` | 30 / min | client IP |
+| `member_create_user` | 60 / hour | the admin adding members |
 
 - Rates live in `settings.RATE_LIMITS`. They are read per request, so tests and environments can change them, and windows like `5/15m` are allowed.
 - `RATE_LIMITS_ENABLED=false` turns them off for local experiments. Production settings refuse to start that way.
-- Identifiers are hashed before becoming Redis keys.
+- Identifiers are hashed before becoming Redis keys. Numeric JSON values (`{"phone": 9812345678}`) are counted the same as strings.
 - **Client IP:** `X-Forwarded-For` is trusted only for the number of proxies set in `TRUSTED_PROXY_COUNT` (default 0: the header is ignored). A client cannot dodge an IP limit by sending its own header. Set this to the real number of proxies in each deployment.
 
 These limits slow down online guessing per account and per IP. They are **not** a defence against distributed attacks from many IPs; an edge rate limiter or WAF is still needed in production (ADR-016).

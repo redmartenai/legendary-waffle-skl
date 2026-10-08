@@ -37,10 +37,11 @@ References are plain UUIDs, not foreign keys: the trail outlives the rows it des
 | `auth.logout`, `auth.logout_all`, `auth.session.revoked` | success | |
 | `auth.refresh` | success, failure | failure `metadata.reason`: `unknown`, `revoked`, `expired`, `inactive` |
 | `auth.refresh.reuse_detected` | failure | the whole session is revoked |
-| `auth.otp.requested` | success | `metadata.account_found` (internal only) |
+| `auth.otp.requested` | success | `metadata.account_found`, `metadata.delivered` (internal only) |
 | `auth.otp.verified` | success, failure | failure `metadata.reason`: `wrong_code`, `expired`, `used`, `locked`, `unknown` |
 | `identity.password.change` | success, failure | `metadata.other_sessions_revoked` |
-| `identity.user.created` | success | account created while adding a member |
+| `identity.user.created` | success | account created while adding a member; `metadata.by_platform` |
+| `identity.phone.verified` | success | first successful OTP sign-in to that phone |
 | `identity.user.activated` / `.deactivated` | success | platform action; deactivation revokes all sessions |
 | `identity.platform_admin.granted` | success | management command |
 | `tenancy.school.created` / `.updated` | success | |

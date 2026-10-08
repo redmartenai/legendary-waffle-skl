@@ -91,7 +91,8 @@ Roles belong to a school. Every new school gets the 12 system roles, seeded from
 | Granting a permission to a role (create or update) requires holding that permission with `school` scope | A principal giving `role.delete` to staff |
 | Giving someone a role requires holding *all* of that role's permissions with `school` scope | A principal making anyone (including themselves) `school_admin` |
 | `school_admin` is locked; system roles cannot be deleted | A school locking itself out |
-| The last active school admin cannot lose the role or be deactivated | The same |
+| Activating or deactivating a member requires holding every permission of that member's roles | A principal re-activating a former school admin, or removing co-admins |
+| The last active school admin cannot lose the role or be deactivated; the check locks the school row | The same, including two admins demoting each other at once |
 | Nobody can deactivate their own membership; platform admins cannot deactivate themselves | Accidental lock-out |
 | A role from another school cannot be assigned: service check, plus composite foreign keys in the database | Cross-tenant role injection |
 

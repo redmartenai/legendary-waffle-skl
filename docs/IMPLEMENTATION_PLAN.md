@@ -184,7 +184,7 @@ Implemented on branch `phase-2/security-identity`. The architecture is in [archi
 | Organization | `tenancy.Organization` | Not built | Nothing uses it yet. `School` is the tenant (ADR-003); organisations come with billing. |
 | UserSession / devices | `identity.UserSession` | `AuthSession` (the refresh-token family), with list and revoke endpoints | One table serves both purposes (ADR-019) |
 | Push devices | `identity` push devices | Not built | Belongs with notifications (Phase 9) |
-| Invites | `/auth/invite/{token}` | Not built; temporary passwords with forced change instead | Invites need email or SMS delivery; deferred to Phase 4 (people) |
+| Invites | `/auth/invite/{token}` | Not built. Platform staff can set a temporary password (forced change); accounts a school creates have no password and sign in by phone OTP | Invites need email delivery; deferred to Phase 4 (people). Schools must not set passwords (security review, T20). |
 | Data scope | "broadest wins" (ADR-004) | Union of scopes (ADR-020) | Scopes are not totally ordered |
 | RLS | "evaluate" (ADR-003) | Adopted (ADR-018) | Works with Celery and tooling |
 | Least-privilege database role | Phase 2 | `eduflow_app` (NOLOGIN, RLS-bound); requests switch to it | A separate production login is recommended in [rls.md](security/rls.md) |
