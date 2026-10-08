@@ -503,6 +503,20 @@ wheels = [
 ]
 
 [[package]]
+name = "djangorestframework-simplejwt"
+version = "5.5.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+    { name = "djangorestframework" },
+    { name = "pyjwt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a8/27/2874a325c11112066139769f7794afae238a07ce6adf96259f08fd37a9d7/djangorestframework_simplejwt-5.5.1.tar.gz", hash = "sha256:e72c5572f51d7803021288e2057afcbd03f17fe11d484096f40a460abc76e87f", size = 101265, upload-time = "2025-07-21T16:52:25.026Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/60/94/fdfb7b2f0b16cd3ed4d4171c55c1c07a2d1e3b106c5978c8ad0c15b4a48b/djangorestframework_simplejwt-5.5.1-py3-none-any.whl", hash = "sha256:2c30f3707053d384e9f315d11c2daccfcb548d4faa453111ca19a542b732e469", size = 107674, upload-time = "2025-07-21T16:52:07.493Z" },
+]
+
+[[package]]
 name = "djangorestframework-stubs"
 version = "3.18.1"
 source = { registry = "https://pypi.org/simple" }
@@ -551,6 +565,7 @@ dependencies = [
     { name = "django-environ" },
     { name = "django-storages", extra = ["s3"] },
     { name = "djangorestframework" },
+    { name = "djangorestframework-simplejwt" },
     { name = "drf-spectacular" },
     { name = "gunicorn" },
     { name = "psycopg", extra = ["binary"] },
@@ -570,6 +585,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-django" },
     { name = "ruff" },
+    { name = "time-machine" },
 ]
 
 [package.metadata]
@@ -581,6 +597,7 @@ requires-dist = [
     { name = "django-environ", specifier = ">=0.12" },
     { name = "django-storages", extras = ["s3"], specifier = ">=1.14" },
     { name = "djangorestframework", specifier = ">=3.16" },
+    { name = "djangorestframework-simplejwt", specifier = ">=5.5" },
     { name = "drf-spectacular", specifier = ">=0.28" },
     { name = "gunicorn", specifier = ">=23.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
@@ -600,6 +617,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "pytest-django", specifier = ">=4.9" },
     { name = "ruff", specifier = ">=0.9" },
+    { name = "time-machine", specifier = ">=2.16" },
 ]
 
 [[package]]
@@ -993,6 +1011,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyjwt"
+version = "2.15.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/ea/5194e52748b0da83d71e082d75496eaec6e58f419f5e184786ded517e6a9/pyjwt-2.15.1.tar.gz", hash = "sha256:4f259e80cdfb6b3fc18a7de51fd1ef9ec79652f25019bae68975ca2468a34df8", size = 121252, upload-time = "2026-09-28T18:40:42.598Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/50/ca/44de4e75f8aadc457f0634be3b542815078ded46dca30efb960edeecad6e/pyjwt-2.15.1-py3-none-any.whl", hash = "sha256:42d59d631f7768a1028a64c7ff581a9bf7519804daf91fc5b6c56e30eec5e193", size = 33860, upload-time = "2026-09-28T18:40:41.429Z" },
+]
+
+[[package]]
 name = "pyparsing"
 version = "3.3.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1217,6 +1244,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5e/89/b4a0bcfdf4f71a3dea31379f095929613d7e4528a0996bca6aa964cd0dca/structlog-26.1.0.tar.gz", hash = "sha256:f63a716cbd1b1291cf7661de7794b455acfa4c43c5bcf1630e6ad5ddc1adb3b7", size = 1459881, upload-time = "2026-06-06T07:33:39.348Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/18/489c97b834dfff9cf2fc2507cede4bcd4b11e67f84bc462acd1992496f86/structlog-26.1.0-py3-none-any.whl", hash = "sha256:e081a26d6c373e6d201eca24eede26d8ffab07f88f477822e679183428d3d91e", size = 73764, upload-time = "2026-06-06T07:33:38.046Z" },
+]
+
+[[package]]
+name = "time-machine"
+version = "3.5.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/65/d2/065a4d202d7ba093145e6f803fafd84bdcea41f3ce5f5ee6dacc77330719/time_machine-3.5.1.tar.gz", hash = "sha256:eb2c50404820fde8bfc6a0713b2a0b8eabececfecefde3a5847ae8006037829f", size = 28434, upload-time = "2026-09-08T22:19:49.989Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8e/aa/f2dd3acae3168f5e5076b46c42f52550d39b1b69906f77e81b486721a06a/time_machine-3.5.1-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:31aa239f2e02ec71682eadbf387d43bfe372b9409ff0dd148eca19d736402c73", size = 27663, upload-time = "2026-09-08T22:19:04.61Z" },
+    { url = "https://files.pythonhosted.org/packages/41/ce/8aa00371e2e0ced89534e84753a880989794effae19736a9ef9d59934110/time_machine-3.5.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:cd9252e190b2c6079fd3ec9a7afc26fd26008fee1dc9940714e7d4755668b7ea", size = 27780, upload-time = "2026-09-08T22:19:05.614Z" },
+    { url = "https://files.pythonhosted.org/packages/99/fc/970e954e53e0cc3e241fc665b0f797a2708dc680553641942acf61ed6265/time_machine-3.5.1-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:8a39af6fad7115e2c9d0deef287645260b096919d8918d52191d80ac31e43525", size = 59870, upload-time = "2026-09-08T22:19:06.624Z" },
+    { url = "https://files.pythonhosted.org/packages/2b/e1/e1814122b0ea321e2714f369dd3de8f052eb132097757112a9fe497129cb/time_machine-3.5.1-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:6edb56e4a41b2d717f28fbdc04ac3fc7cff43b2f573e88189d67650680eb672e", size = 60776, upload-time = "2026-09-08T22:19:08.005Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/1b/09acb019f25d918c04e470e7a410d5aeffb087b8457d6e0815c576e013ef/time_machine-3.5.1-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:d4cea8ed128c65fe262cc216a4f46fb6080b745a3013baba188e45992ce673c5", size = 59584, upload-time = "2026-09-08T22:19:09.13Z" },
+    { url = "https://files.pythonhosted.org/packages/10/15/c4df8f02cbe773462dd60da9ab263407b4dd06b615350b889b70f6bd49b7/time_machine-3.5.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:c615f45b3668fa2ccd4ad2b81899d22efe4e33d23b3540283922796de57ad37c", size = 59088, upload-time = "2026-09-08T22:19:10.587Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/e8/cae3230abdbd7fcf81bbd70c7a1047f07e98a31536db979960dbbdc2b72e/time_machine-3.5.1-cp313-cp313-win_amd64.whl", hash = "sha256:c0a865aca362e645947159f2e0e3022131e591ba113b95f2b355410c36ddcd60", size = 29621, upload-time = "2026-09-08T22:19:11.688Z" },
+    { url = "https://files.pythonhosted.org/packages/20/47/224a9428327db95abe9bd52462db744fdc84db61da0cd19df2a611da3afd/time_machine-3.5.1-cp313-cp313-win_arm64.whl", hash = "sha256:27095e90a2b42c2979f40146feb1bbf077dcf6a610889ae5dc36fa015e4fe2ef", size = 28956, upload-time = "2026-09-08T22:19:12.748Z" },
 ]
 
 [[package]]

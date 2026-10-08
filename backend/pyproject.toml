@@ -17,6 +17,7 @@ dependencies = [
     "boto3>=1.35",
     "argon2-cffi>=23.1",
     "gunicorn>=23.0",
+    "djangorestframework-simplejwt>=5.5",
 ]
 
 [dependency-groups]
@@ -31,6 +32,7 @@ dev = [
     "celery-types>=0.22",
     "boto3-stubs[s3]>=1.35",
     "pip-audit>=2.7",
+    "time-machine>=2.16",
 ]
 
 [tool.uv]
