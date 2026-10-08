@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Contained (remote branch removal: see §7) |
+| **Status** | Contained: remote branch deleted 2026-10-08 (see §7) |
 | **Detected** | 2026-10-08, during Phase 0 repository analysis |
 | **Severity** | High: code execution on developer machines; the repository is **public** |
 | **Repository** | `https://github.com/redmartenai/miniature-pancake-app` (public) |
@@ -97,7 +97,7 @@ No machine in this session executed the payloads. The current development machin
 
 - The exact ref and SHA are recorded above (`refs/heads/master` → `fda7e166b5f068d948c30c4c9e6f80c062a09f08`).
 - **Evidence preservation:** a local, non-checked-out ref `refs/quarantine/master-fda7e16` keeps the objects for forensics. It is never pushed and never checked out. The SHA is recorded here, so the branch can be inspected later by SHA if a security reviewer needs it.
-- **Remote deletion:** the result is recorded in the action log below.
+- **Remote deletion:** done on 2026-10-08. The deletion was guarded by `--force-with-lease`, so it only removed the ref if it still pointed at the recorded SHA. GitHub may keep the commit reachable by SHA for a time, and forks or clones made earlier still contain it.
 
 ### Action log
 
@@ -106,7 +106,9 @@ No machine in this session executed the payloads. The current development machin
 | 2026-10-08 | Malicious content identified during analysis (read-only) | Confirmed by two independent reviews |
 | 2026-10-08 | Scratch extraction of `master` deleted | Done |
 | 2026-10-08 | Remote dependency checks: open PRs, workflows, protection, default branch | None depend on `master` |
-| 2026-10-08 | Remote branch deletion | See the commit that follows this document |
+| 2026-10-08 | Local quarantine ref `refs/quarantine/master-fda7e16` created (not checked out, not pushed) | Done |
+| 2026-10-08 | `git push --force-with-lease=master:fda7e166… origin :refs/heads/master` (deletes only if still at the recorded SHA) | `- [deleted] master`. `git ls-remote origin` now lists only `main` and `eduflow-new`. |
+| Pending (owner) | Contact the committer; rotate credentials on any machine that ran or opened the branch; enable branch protection on `main` | Open |
 
 ## 8. Standing rules
 
