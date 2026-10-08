@@ -57,6 +57,26 @@ docker compose down                        # stop (data volumes kept)
 docker compose down --volumes              # stop and DELETE all local data
 ```
 
+## Signing in locally (Phase 2)
+
+```bash
+# A platform administrator (the password comes from the environment, never the command line):
+docker compose exec -e EDUFLOW_ADMIN_PASSWORD='a-long-local-password' backend \
+  python manage.py create_platform_admin --email you@example.com --full-name "You"
+```
+
+Then, in Swagger UI (http://127.0.0.1:8000/api/v1/docs):
+
+1. `POST /auth/password/login`, then **Authorize** with the `access` token.
+2. `POST /platform/schools` with an `admin` and a `temporary_password`.
+3. Sign in as that admin, `POST /auth/password/change`, and send `X-School-Id` on school endpoints.
+
+**Phone OTP** codes are printed to the backend log in development: `docker compose logs backend | grep dev_sms`.
+
+After adding permissions or roles to `eduflow/authz/catalog.py`: `docker compose exec backend python manage.py sync_rbac`.
+
+Rate limits are on locally too. If you lock yourself out while experimenting, wait for the window to pass or run `docker compose exec redis redis-cli -n 0 FLUSHDB`.
+
 ## Mode B: Django on the host
 
 ```bash

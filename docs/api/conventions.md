@@ -46,12 +46,18 @@ Every error, from DRF, Django or a crash, uses one envelope:
 | `parse_error` | 400 | The body could not be parsed |
 | `bad_request` | 400 | A malformed request was rejected before reaching a view |
 | `not_authenticated` | 401 | Missing or invalid credentials |
+| `tenant_required` | 400 | A school-scoped endpoint was called without `X-School-Id` |
+| `not_authenticated` / `invalid_credentials` / `invalid_code` | 401 | See "Authentication and tenancy" below |
 | `permission_denied` | 403 | Authenticated, but not allowed |
+| `tenant_forbidden` | 403 | Not an active member of an active school with that ID. The same response for an unknown school. |
+| `password_change_required` | 403 | The account must replace its temporary password first |
 | `csrf_failed` | 403 | CSRF check failed (cookie-authenticated requests only) |
 | `not_found` | 404 | The resource does not exist **or is outside the caller's tenant or scope**. These are deliberately the same, so the API does not leak whether an object exists. |
 | `method_not_allowed` | 405 | |
 | `not_acceptable` / `unsupported_media_type` | 406 / 415 | |
+| `conflict` | 409 | The request conflicts with the current state (duplicate, last admin, role still assigned) |
 | `rate_limited` | 429 | See `retry_after_seconds` |
+| `service_unavailable` | 503 | A dependency is unavailable (e.g. no SMS provider configured) |
 | `server_error` | 500 | A bug. No internal detail is ever returned. Quote `request_id` to support. |
 
 Rules:
@@ -65,11 +71,14 @@ Rules:
 - The response always echoes `X-Request-ID`, and every error body includes it as `request_id`.
 - The same ID is attached to every log line of the request and to background jobs it enqueues.
 
-## Authentication and tenancy (from Phase 2)
+## Authentication and tenancy
 
-- Requests carry `Authorization: Bearer <access token>` and `X-School-Id: <school uuid>`.
+- Requests carry `Authorization: Bearer <access token>`. School-scoped endpoints also need `X-School-Id: <school uuid>`; the OpenAPI document marks them with that header.
 - The server validates `X-School-Id` against the caller's active memberships on every request. Nothing about tenancy or role is trusted from the client (ADR-003/004).
-- Until Phase 2, endpoints are **deny-by-default**: only endpoints that explicitly opt in (the health probes) are public.
+- Endpoints are **deny-by-default**. The public ones are the health probes, `auth/password/login`, `auth/otp/*`, `auth/token/refresh` and `schools/lookup`.
+- Sign-in failures are deliberately generic: `401 invalid_credentials` (password) and `401 invalid_code` (OTP) do not say whether the account exists. Any bad, expired or revoked token is `401 not_authenticated`; the client should refresh once, then sign out.
+- Access tokens last 10 minutes. Refresh tokens are **single-use**: store the new one from every refresh response. Reusing an old refresh token signs out that session. See [security/token-lifecycle.md](../security/token-lifecycle.md).
+- Out-of-scope or other-school object IDs are `404 not_found`, identical to IDs that do not exist.
 
 ## Pagination
 
@@ -109,3 +118,4 @@ Client types are generated from this file with `openapi-typescript` once the cli
 | Date | Change |
 |---|---|
 | 2026-10-08 | v1 created: `health/live`, `health/ready`, error envelope, request IDs |
+| 2026-10-08 | Phase 2: `auth/*` (password, OTP, refresh, logout, sessions), `me`, `me/permissions`, `schools/lookup`, `school`, `memberships`, `roles`, `permissions`, `audit-events`, `platform/*`; error codes `tenant_required`, `tenant_forbidden`, `invalid_credentials`, `invalid_code`, `password_change_required`, `conflict`, `service_unavailable`; bearer security scheme |

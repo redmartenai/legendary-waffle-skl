@@ -174,3 +174,17 @@ Implemented on branch `phase-1/foundation`. These are the deviations from the §
 | Least-privilege database role | `infra/docker/postgres/init/` | Deferred to Phase 2 | Belongs with the append-only audit trigger and grants (ADR-015). Phase 1 has no domain tables. |
 | Prometheus metrics endpoint | Not in the §3 list | Not added | Observability is prepared through structured logs and request IDs. The metrics endpoint comes with the first deployed environment. |
 | Smoke test | Not listed | `scripts/smoke-test.sh`, run locally and in CI | Verifies the stack end to end, not just that containers start |
+
+## 6. Phase 2 status (2026-10-08)
+
+Implemented on branch `phase-2/security-identity`. The architecture is in [architecture/phase-2.md](architecture/phase-2.md) and the decisions in ADR-018 to ADR-021. These are the deviations from the §1 scope:
+
+| Item | Plan | Actual | Reason |
+|---|---|---|---|
+| Organization | `tenancy.Organization` | Not built | Nothing uses it yet. `School` is the tenant (ADR-003); organisations come with billing. |
+| UserSession / devices | `identity.UserSession` | `AuthSession` (the refresh-token family), with list and revoke endpoints | One table serves both purposes (ADR-019) |
+| Push devices | `identity` push devices | Not built | Belongs with notifications (Phase 9) |
+| Invites | `/auth/invite/{token}` | Not built; temporary passwords with forced change instead | Invites need email or SMS delivery; deferred to Phase 4 (people) |
+| Data scope | "broadest wins" (ADR-004) | Union of scopes (ADR-020) | Scopes are not totally ordered |
+| RLS | "evaluate" (ADR-003) | Adopted (ADR-018) | Works with Celery and tooling |
+| Least-privilege database role | Phase 2 | `eduflow_app` (NOLOGIN, RLS-bound); requests switch to it | A separate production login is recommended in [rls.md](security/rls.md) |

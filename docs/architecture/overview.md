@@ -7,7 +7,7 @@ EduFlow is a multi-tenant School Operating System. The backend is a **modular mo
                  │  HTTPS, Bearer token, X-School-Id, X-Request-ID
                  ▼
         ┌──────────────────────────────┐
-        │ Django + DRF  (/api/v1)      │  request context · error envelope · authz (Phase 2)
+        │ Django + DRF  (/api/v1)      │  request context · error envelope · authn · tenancy · authz
         │  eduflow/<module>/           │  models · services · selectors · policies · api
         └───────┬───────────┬──────────┘
                 │           │ enqueue (request_id in headers)
@@ -28,7 +28,11 @@ Realtime transport (Django Channels vs Centrifugo) is **an open decision** (ADR-
 backend/                Django project (uv-managed)
   config/               settings (base/dev/test/prod), urls, celery, wsgi/asgi
   eduflow/core/         cross-cutting infrastructure only, no domain logic
-  eduflow/<module>/     domain modules (from Phase 2)
+  eduflow/identity/     users, sessions, tokens, OTP (Phase 2)
+  eduflow/tenancy/      schools, memberships, tenant resolution, tenant tasks (Phase 2)
+  eduflow/authz/        permissions, roles, data scopes, base API views (Phase 2)
+  eduflow/audit/        append-only audit trail (Phase 2)
+  eduflow/<module>/     domain modules (from Phase 3)
 apps/mobile/            Expo client (imported in Phase 6 from origin/eduflow-new)
 infra/docker/           Compose stack
 scripts/                smoke test and dev scripts
@@ -64,6 +68,11 @@ Two rules govern how modules interact:
 | Health | `health.py` | `live` (no I/O) and `ready` (PostgreSQL, Redis, storage) |
 | Background context | `celery_context.py` | The request ID travels in task headers, and the worker logs carry it |
 | Production guard | `config_validation.py` | Insecure production configuration refuses to start |
+| Database tenant context (RLS) | `db_context.py`, `middleware.py` | Every request and task runs as `eduflow_app` with a verified tenant context (Phase 2, [rls.md](../security/rls.md)) |
+| Security headers | `middleware.py` | CSP and `no-store` on API responses |
+| Client IP | `client_ip.py` | `X-Forwarded-For` trusted only for configured proxies |
+
+The Phase 2 security architecture is described in [phase-2.md](phase-2.md).
 
 ## Environments
 

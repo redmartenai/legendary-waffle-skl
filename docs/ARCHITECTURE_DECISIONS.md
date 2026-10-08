@@ -382,3 +382,83 @@ Option A, keeping the brief's stack, unless push to many concurrent bus trackers
 ## ADR-011 follow-up: realtime remains open
 
 Per the owner's Phase 1 instruction, Centrifugo is **not** replaced and Channels is **not** introduced in Phase 1. A technical comparison and recommendation will be delivered before the realtime phase (Phase 9).
+
+## ADR-018: PostgreSQL Row-Level Security through an application role and per-request session settings. *Accepted (Phase 2)*
+
+**Context**
+
+ADR-003 made the application layer the tenant boundary and asked Phase 2 to evaluate RLS as defence in depth, adopting it only if it works with Celery and admin tooling. Two constraints shaped the design:
+
+- Requests run in autocommit (`ATOMIC_REQUESTS=False`), so `SET LOCAL` would last for a single query.
+- The local database login is a superuser, and owners and superusers bypass RLS.
+
+**Decision**
+
+- Migration `core.0001` creates `eduflow_app` (`NOLOGIN NOBYPASSRLS`), grants it DML on all tables (now and by default privileges), and makes the migration role a member.
+- Every request (except health probes) and every Celery task switches to `eduflow_app` and writes `eduflow.school_id`, `eduflow.user_id` and `eduflow.rls_bypass` with `set_config(…, false)`. Only server-verified values are written. The context starts empty (fail closed) and is reset at the end; it is re-applied on reconnect, and the connection is closed if a reset fails.
+- School-owned tables get `tenant_rw` policies, plus SELECT-only policies for a user's own memberships and roles. The audit table gets read and insert policies only.
+- `TenantTask` gives background jobs an explicit, cross-checked tenant.
+- Migrations, management commands and test fixtures run as the owner, outside RLS.
+
+**Consequences**
+
+- A query that forgets its school filter returns nothing from other schools, and a write to another school fails.
+- One extra round trip per request to set the context.
+- RLS does not stop SQL injection (the app role can call `set_config`) and knows nothing of roles or scopes. Application authorization remains mandatory.
+- RLS is adopted, satisfying ADR-003's evaluation clause.
+
+## ADR-019: Session-bound access tokens and opaque rotating refresh tokens. *Accepted (Phase 2)*
+
+**Context**
+
+ADR-005 chose `djangorestframework-simplejwt` with rotation and reuse detection. simplejwt's own blacklist app stores tokens by `jti` and has no notion of a token family, so it cannot revoke "everything descended from this login".
+
+**Decision**
+
+- **Access tokens:** simplejwt JWTs, HS256, 10 minutes, with claims `sub`, `sid`, `jti`, `iss`, `aud`, `token_type`. The signing key is `JWT_SIGNING_KEY` or a key derived from `SECRET_KEY`. Every request checks the `sid` session (unrevoked, unexpired, active user), so revocation is immediate.
+- **Refresh tokens:** 48 random bytes from `secrets`, opaque to the client, stored as SHA-256 only. Rotated on every use under a row lock. The family is an `AuthSession`; presenting a used token revokes the session.
+- Lifetimes: 1 day sliding (30 with "remember me"), capped at 90 days from sign-in.
+- simplejwt's `token_blacklist` app is not installed.
+
+**Consequences**
+
+- Logout, logout-all, password change, deactivation and reuse detection all take effect on the next request.
+- One primary-key query per authenticated request (the session check). Caching it would weaken immediate revocation, so it is not cached.
+- No grace window for lost refresh responses: such a client is signed out.
+- No cryptography is implemented here: JWT signing is simplejwt's, randomness is `secrets`, hashing is `hashlib`.
+
+## ADR-020: Data scopes combine as a union and are resolved by per-resource rules that fail closed. *Accepted (Phase 2)*
+
+**Context**
+
+ADR-004 said "broadest scope wins". Scopes such as `child` and `section` are not comparable, though: a teacher who is also a parent needs both.
+
+**Decision**
+
+- A grant holds a **set** of scopes (`RolePermission.scopes`). The effective grant for a permission is the union across the member's roles.
+- Each resource declares a `ScopedResource` with one `Q` rule per supported scope. `school` (or `platform`) means school-wide. Rules are OR-ed, the school filter is always applied first, and an unsupported scope contributes nothing.
+- `platform` scope cannot be granted to school roles. Platform access is `User.is_platform_admin` only.
+
+**Consequences**
+
+- Mixed roles work naturally, and adding a scope to a resource is one function.
+- A mis-configured scope grants nothing rather than everything.
+
+## ADR-021: OTP through a provider adapter, with codes and phone numbers stored only as HMACs. *Accepted (Phase 2)*
+
+**Decision**
+
+- The `SmsProvider` protocol has these adapters:
+  - `ConsoleSmsProvider` (development; requires `DEBUG`)
+  - `MemorySmsProvider` (tests)
+  - `DisabledSmsProvider` (the default, so production does not send until a gateway is configured)
+- Production refuses the console and memory providers.
+- Codes are stored as `HMAC-SHA256(k, challenge_id:code)` and numbers as `HMAC-SHA256(k, phone)`. The keys are derived from `SECRET_KEY` with purpose labels.
+- Rules: 5 attempts, 5 minutes, single use, 30-second resend cooldown, rate limits per number and per IP. A challenge is also created for unknown numbers, without sending an SMS.
+- No commercial gateway is chosen. MSG91 or Twilio can be added as an adapter.
+
+**Consequences**
+
+- Phone sign-in works locally with no external service, and tests never send SMS.
+- Rotating `SECRET_KEY` invalidates outstanding codes, which is harmless because they live for 5 minutes.
+- Response timing for registered numbers includes the gateway call (recorded in the threat model).

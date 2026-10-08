@@ -13,20 +13,22 @@ This is a summary of how EduFlow is secured. The decisions behind it are in [ARC
 
 | Area | Status | Notes |
 |---|---|---|
-| Deny-by-default API | **Implemented (Phase 1)** | The default DRF permission is `IsAuthenticated`, with no authenticators until Phase 2. Only the health probes are public. Tested. |
+| Deny-by-default API | **Implemented** | The default DRF permission is `IsAuthenticated`. Public endpoints opt in explicitly: the health probes, sign-in, OTP, refresh and school lookup. Every tenant handler must declare a permission (CI-enforced). |
 | Error hygiene | **Implemented** | One JSON envelope. Internal exception text never reaches clients. Tested for 4xx, 5xx and unknown routes. |
 | Secret redaction in logs | **Implemented** | Applies to every log line, including those from Django, Celery and libraries. See "Logging" below. Tested, and verified against live container logs by the smoke test. |
 | Production config guard | **Implemented** | `config.settings.prod` refuses to start with `DEBUG`, a weak or placeholder `SECRET_KEY`, empty or wildcard `ALLOWED_HOSTS`, `OTP_ECHO_DEV_CODE`, API docs enabled, insecure cookies, no HTTPS enforcement, or a default database password. Django `check --deploy` passes at `WARNING` level. |
-| Security headers | **Implemented** | `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`, COOP `same-origin`. In production: HSTS for 1 year with subdomains, an HTTPS redirect (health probes exempt), and secure cookies. HSTS preload is an explicit per-domain opt-in. |
+| Security headers | **Implemented** | `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`, COOP and CORP `same-origin`, a `default-src 'none'` CSP and `Cache-Control: no-store` on API responses. No CORS headers (same-origin by design). In production: HSTS for 1 year with subdomains, an HTTPS redirect (health probes exempt), and secure cookies. HSTS preload is an explicit per-domain opt-in. |
 | CSRF | **Implemented (middleware)** | Protects any cookie-authenticated endpoint. Token-authenticated API calls are CSRF-exempt by design. |
-| Password hashing | **Configured** | Argon2 primary, minimum length 10. Used from Phase 2. |
+| Password hashing | **Implemented** | Argon2 primary, Django's validators, minimum length 10. |
 | Container hardening | **Implemented** | The runtime image is non-root (uid 10001), contains no dev tools, uses pinned base digests, and runs with `no-new-privileges`. All local ports bind to `127.0.0.1`. |
 | Supply chain | **Implemented** | `uv.lock` with `--locked` installs. `pip-audit` runs in CI. GitHub Actions are pinned to commit SHAs. Images are pinned by digest. See also [SECURITY_INCIDENT.md](../SECURITY_INCIDENT.md). |
-| Authentication | Phase 2 | Phone OTP and password. JWT access for 10 minutes plus rotating refresh tokens with reuse detection. Server-side logout (ADR-005). |
-| Tenant isolation | Phase 2 | Membership-validated `X-School-Id` and school-scoped selectors. An isolation-matrix test runs over every endpoint (ADR-003, ADR-013). |
-| Authorization and data scope | Phase 2 | Role → permission (`module.action`) → data scope → record (ADR-004) |
-| Rate limiting | Phase 2 | Redis-backed throttles, tighter on OTP, login and refresh (ADR-016). The error format for it already exists. |
-| Audit log | Phase 2 | Append-only, enforced by a database trigger (ADR-015) |
+| Authentication | **Implemented (Phase 2)** | Password and phone OTP. 10-minute JWT access tokens bound to a revocable session; opaque, hashed, rotating refresh tokens with family revocation on reuse; logout, logout-all, session list and revoke. [authentication.md](authentication.md), [token-lifecycle.md](token-lifecycle.md), [otp.md](otp.md) |
+| Tenant isolation | **Implemented (Phase 2)** | Membership-validated `X-School-Id`; school-filtered selectors; an isolation matrix enforced over every tenant endpoint; composite FKs. [multitenancy.md](multitenancy.md) |
+| Row-Level Security | **Implemented (Phase 2)** | `eduflow_app` role plus per-request tenant context; policies on every school-owned table; Celery tasks start with an empty context. [rls.md](rls.md) |
+| Authorization and data scope | **Implemented (Phase 2)** | Role → permission (`resource.action`) → data scope → record; 12 system roles; escalation guards. [authorization.md](authorization.md) |
+| Rate limiting | **Implemented (Phase 2)** | Redis sliding windows on login, refresh, OTP, password change and school lookup; trusted-proxy-aware client IP. Edge limiting is still required in production. |
+| Audit log | **Implemented (Phase 2)** | Append-only (trigger + grants), RLS per school, redacted metadata. [audit.md](audit.md) |
+| Threat model | **Phase 2** | [threat-model.md](threat-model.md), with residual risks listed |
 | Files | Phase 7 | A private bucket is already provisioned, and anonymous reads are denied (verified). Authorization happens before download, then a 60-second signed URL, a type and size allow-list, and a scan hook (ADR-009). |
 
 ## Logging
@@ -35,7 +37,7 @@ This is a summary of how EduFlow is secured. The decisions behind it are in [ARC
 
 - `request_id`
 - `task_id` / `task_name` for background jobs
-- `user_id` once authentication exists
+- `user_id` and `school_id` once the request is authenticated and its tenant resolved
 
 **Never logged:**
 

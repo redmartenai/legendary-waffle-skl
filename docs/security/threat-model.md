@@ -1,0 +1,43 @@
+# Threat Model (Phase 2)
+
+Baseline: the Phase 0 analysis ([CURRENT_STATE.md §14](../CURRENT_STATE.md), [SECURITY_INCIDENT.md](../SECURITY_INCIDENT.md)) and the Phase 1 controls ([model.md](model.md)). This document covers identity, authentication, authorization and tenancy.
+
+Status: **Mitigated** means implemented and tested. **Partial** means a real control exists but gaps remain (listed). **Open** means not addressed yet. Nothing is listed as mitigated unless the code does it.
+
+## Assets and trust boundaries
+
+- **Assets:** student and family personal data; staff data; credentials; tokens; the authorization configuration (roles and grants); the audit trail.
+- **Boundary 1:** client ↔ API. Nothing from the client is trusted: not the tenant, role, ownership or IDs.
+- **Boundary 2:** API ↔ database. The app role is subject to RLS; the owner role is operator-only.
+- **Boundary 3:** API ↔ worker. Tasks carry IDs and tenant context in messages, and are re-validated.
+
+## Threats
+
+| # | Threat | Status | Controls | Residual risk / follow-up |
+|---|---|---|---|---|
+| T1 | **Horizontal privilege escalation** (a teacher reads another section's students; a parent reads another child) | Mitigated (foundation) | Data scopes resolved server-side from relationships, never from client input; `ScopedResource.get` gives 404 outside scope; unsupported scopes grant nothing | Each domain module must register correct scope rules and use `ScopedResource`. Tested with the toy models now; each module adds its own tests. |
+| T2 | **Vertical privilege escalation** (granting oneself admin, editing roles beyond one's power) | Mitigated | Permission check per method (deny by default, CI-enforced declarations); grant and assign only what one holds school-wide; locked `school_admin`; last-admin protection; no self-deactivation; platform flag not grantable through the API | A school admin is all-powerful within the school by design. |
+| T3 | **Cross-tenant access** | Mitigated | Membership-verified `X-School-Id`; every query school-filtered; RLS; composite FKs; isolation matrix over every tenant endpoint, enforced by a meta-test | Platform endpoints cross tenants by design (admin-only, audited). |
+| T4 | **Object ID enumeration** | Mitigated | UUIDv7 IDs (time-ordered but 74 random bits); a foreign or out-of-scope ID gives the same 404 as a random one; tenant failures are a uniform 403 | UUIDv7 reveals creation time. Acceptable. |
+| T5 | **Refresh-token theft** | Partial | 64-character opaque tokens stored as SHA-256; sessions revocable and listable by the user; logout-all; password change revokes other sessions | A thief who uses the token **before** the legitimate client does gets a valid session until the client's next refresh, which then triggers reuse detection. Web storage of tokens is a client concern (httpOnly cookie plan in [authentication.md](authentication.md#web-sessions-prepared-not-implemented)). |
+| T6 | **Refresh-token replay** | Mitigated | Rotation on every use; replaying a used token revokes the whole family (including access tokens, via the `sid` check); row lock prevents concurrent double-use | A legitimate client that loses a refresh response is signed out (no grace window, by choice). |
+| T7 | **Access-token theft** | Partial | 10-minute lifetime; revocation is immediate through the session check; no tenant or role in the token | A stolen token is usable until expiry or revocation. No proof-of-possession binding. |
+| T8 | **OTP brute force** | Mitigated | 6 digits, 5 attempts per challenge, 5-minute expiry, one-time use, per-challenge, per-IP and per-number limits, resend cooldown, row locking | A distributed attacker with many IPs can still try about 5 guesses per code per challenge. The odds per challenge are 5 in 10⁶. Edge limiting is recommended. |
+| T9 | **Password brute force / credential stuffing** | Partial | Argon2; per-identifier (across IPs) and per-IP limits; generic errors | No CAPTCHA and no breached-password check; distributed stuffing needs edge or WAF controls. |
+| T10 | **Account enumeration** | Partial | Identical login failures with timing equalised by a dummy hash; identical OTP request responses; no SMS to unknown numbers | OTP request timing differs while a real SMS gateway call is in flight (see [otp.md](otp.md#account-enumeration)). Adding a member reveals to a *school admin* whether an email or phone already has an account (it is attached). |
+| T11 | **Compromised or misdirected background tasks** | Mitigated (foundation) | Every task runs under RLS with an empty context; `TenantTask` requires `school_id`, checks it against the publisher's school header, and checks the school is active; IDs not personal data in task arguments | Anyone who can publish to Redis directly can forge messages, including headers. Redis must stay on a private network with authentication in production. |
+| T12 | **Insecure tenant context** (client-chosen tenant reaching the DB; context leaking between requests) | Mitigated | Only verified IDs are written; context reset at the end of every request and task; re-applied on reconnect; connection closed if reset fails; tested | — |
+| T13 | **RLS bypass** | Partial | App role `NOLOGIN NOBYPASSRLS`, not the table owner; bypass only through two logged code paths; production refuses an empty `DATABASE_RLS_ROLE` | SQL injection as the app role could `set_config` or `RESET ROLE`. RLS is defence against missing filters, not injection. The ORM is used everywhere and string-built SQL is forbidden. In production, prefer a dedicated non-owner login so `RESET ROLE` gains nothing. |
+| T14 | **Leaked secrets** | Partial | `.env` git-ignored; production validation (secret key, DB password, JWT key length, no dev SMS or OTP echo); log redaction; smoke test greps logs for tokens and passwords; the JWT key is derived and separable | Secret rotation procedures are not yet documented. No KMS or secret-store integration yet (deployment phase). |
+| T15 | **Audit-log leakage or tampering** | Mitigated | Redacted, size-limited metadata; no tokens or codes recorded (tested); append-only trigger + no UPDATE/DELETE grant; RLS per school | The owner can `TRUNCATE` (operator trust). No off-site or WORM copy yet. |
+| T16 | **Mass assignment** | Mitigated | `StrictSerializer` rejects unknown fields; writable fields allow-listed | — |
+| T17 | **Spoofed client IP** (evading rate limits, forging audit IPs) | Mitigated | `X-Forwarded-For` trusted only for `TRUSTED_PROXY_COUNT` hops | Must be configured correctly per deployment. |
+| T18 | **Stale authorization** after a role change | Mitigated | Grants are cached per `rbac_version`, which every RBAC change bumps; membership and user state are checked per request | — |
+| T19 | **Denial of service on auth endpoints** | Open (app layer partial) | Per-IP limits; Argon2 cost bounded by login limits | Needs edge rate limiting and a WAF at deployment (ADR-016). |
+
+## Explicitly out of scope for Phase 2
+
+- Multi-factor authentication for staff, SSO, and a forgot-password flow (the client shows info sheets only).
+- Device binding or proof-of-possession tokens.
+- Field-level encryption of personal data.
+- Security event alerting (audit events are recorded, not yet alerted on).
