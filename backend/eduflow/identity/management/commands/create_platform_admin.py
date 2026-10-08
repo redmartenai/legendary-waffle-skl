@@ -16,6 +16,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
+from django.utils import timezone
 
 from eduflow.audit import services as audit
 from eduflow.identity.models import User
@@ -49,8 +50,14 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             if user is None:
+                now = timezone.now()
                 user = User.objects.create_user(
-                    email=email, phone=phone, password=password, full_name=options["full_name"]
+                    email=email,
+                    phone=phone,
+                    password=password,
+                    full_name=options["full_name"],
+                    email_verified_at=now,
+                    phone_verified_at=now if phone else None,
                 )
             elif password is not None:
                 user.set_password(password)

@@ -197,6 +197,20 @@ def assign_role(
     return assignment
 
 
+def lock_school(school_id: Any) -> None:
+    """Serialise admin-count checks for one school (prevents two admins demoting each other at once)."""
+    from eduflow.tenancy.models import School
+
+    School.objects.select_for_update().filter(pk=school_id).values_list("pk", flat=True).first()
+
+
+def ensure_can_manage_roles_of(actor: Actor, membership: Membership) -> None:
+    codenames: set[str] = set()
+    for role in Role.objects.filter(assignments__membership=membership):
+        codenames.update(role_grants(role))
+    _ensure_can_grant(actor, codenames)
+
+
 def _active_admin_count(school_id: Any) -> int:
     return (
         MembershipRole.objects.filter(
@@ -215,6 +229,7 @@ def _active_admin_count(school_id: Any) -> int:
 def unassign_role(actor: Actor, assignment: MembershipRole) -> None:
     role = assignment.role
     _ensure_can_grant(actor, role_grants(role))
+    lock_school(assignment.school_id)
     if role.key == ADMIN_ROLE and _active_admin_count(assignment.school_id) <= 1:
         raise Conflict("A school must keep at least one active school admin.")
     membership_id = assignment.membership_id

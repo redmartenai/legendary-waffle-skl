@@ -43,6 +43,9 @@ def password_login(identifier: str, password: str, *, remember: bool) -> tokens.
         # Hash anyway, so an unknown identifier takes as long as a wrong password (Argon2 dominates).
         make_password(password)
         ok = False
+    elif not user.has_usable_password():
+        make_password(password)  # same cost as a real check (OTP-only accounts)
+        ok = False
     else:
         ok = user.check_password(password) and user.is_active
 
@@ -69,6 +72,12 @@ def password_login(identifier: str, password: str, *, remember: bool) -> tokens.
 
 
 def otp_login(user: User) -> tokens.IssuedTokens:
+    if user.phone_verified_at is None:  # a correct code proves control of the phone
+        user.phone_verified_at = timezone.now()
+        user.save(update_fields=["phone_verified_at", "updated_at"])
+        audit.record(
+            "identity.phone.verified", actor_id=user.pk, school_id=None, target_type="user", target_id=user.pk
+        )
     issued = tokens.start_session(user, method=AuthMethod.OTP)
     audit.record(
         "auth.login",
@@ -107,7 +116,7 @@ def revoke_own_session(user: User, session: AuthSession) -> None:
 
 def change_password(user: User, current: str, new: str, *, keep: AuthSession | None) -> None:
     """Every other session is signed out, so a password change evicts anyone holding a stolen token."""
-    if not user.check_password(current):
+    if user.has_usable_password() and not user.check_password(current):
         audit.record("identity.password.change", outcome=Outcome.FAILURE, actor_id=user.pk, school_id=None)
         raise InvalidCredentials()
     check_password_strength(new, user, field="new_password")

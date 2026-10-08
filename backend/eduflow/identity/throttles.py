@@ -86,6 +86,10 @@ class BodyFieldThrottle(EduFlowThrottle):
     def ident_for(self, request: Request) -> str | None:
         data: Any = request.data
         value = data.get(self.field) if hasattr(data, "get") else None
+        # Serializer fields accept numbers too ({"phone": 9812345678}), so must the throttle; otherwise a
+        # JSON number would skip the per-account limit.
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            value = str(value)
         if not isinstance(value, str) or not value.strip():
             return None
         return _digest(self.normalize(value))
@@ -152,3 +156,7 @@ class PasswordChangeUserThrottle(UserThrottle):
 
 class SchoolLookupIpThrottle(IpThrottle):
     scope = "school_lookup_ip"
+
+
+class MemberCreateUserThrottle(UserThrottle):
+    scope = "member_create_user"

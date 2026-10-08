@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 from rest_framework.exceptions import Throttled
 
@@ -71,14 +71,23 @@ def request_code(phone: str) -> OtpRequestResult:
     digest = phone_digest(phone)
     resend_after = timedelta(seconds=int(settings.OTP_RESEND_SECONDS))
 
-    previous = OtpChallenge.objects.filter(phone_hash=digest).order_by("-created_at").first()
-    if previous is not None and previous.created_at > now - resend_after:
-        wait = (previous.created_at + resend_after - now).total_seconds()
-        raise Throttled(wait=max(1, math.ceil(wait)))
+    provider = get_sms_provider()
+    if not getattr(provider, "enabled", True):
+        # Checked before the number is looked up, so the answer is the same for every number.
+        log.error("otp_sms_provider_disabled")
+        raise ServiceUnavailable()
 
-    user = User.objects.filter(phone=phone, is_active=True).first()
     code = _generate_code()
     with transaction.atomic():
+        # Serialise requests for one number, so parallel requests cannot all pass the cooldown check.
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", [digest])
+        previous = OtpChallenge.objects.filter(phone_hash=digest).order_by("-created_at").first()
+        if previous is not None and previous.created_at > now - resend_after:
+            wait = (previous.created_at + resend_after - now).total_seconds()
+            raise Throttled(wait=max(1, math.ceil(wait)))
+
+        user = User.objects.filter(phone=phone, is_active=True).first()
         OtpChallenge.objects.filter(
             phone_hash=digest, consumed_at__isnull=True, invalidated_at__isnull=True
         ).update(invalidated_at=now)
@@ -94,14 +103,17 @@ def request_code(phone: str) -> OtpRequestResult:
         challenge.code_hash = code_digest(str(challenge.id), code)
         challenge.save(update_fields=["code_hash"])
 
+        delivered = None
         if user is not None:
+            minutes = max(1, int(settings.OTP_TTL_SECONDS) // 60)
+            message = f"{code} is your EduFlow sign-in code. It expires in {minutes} minutes."
             try:
-                minutes = max(1, int(settings.OTP_TTL_SECONDS) // 60)
-                message = f"{code} is your EduFlow sign-in code. It expires in {minutes} minutes."
-                get_sms_provider().send(phone, message)
+                provider.send(phone, message)
+                delivered = True
             except SmsUnavailable:
-                log.error("otp_sms_unavailable")
-                raise ServiceUnavailable() from None
+                # Answer exactly as for an unknown number: a 503 here would reveal that the account exists.
+                log.error("otp_sms_delivery_failed")
+                delivered = False
 
         audit.record(
             "auth.otp.requested",
@@ -109,7 +121,7 @@ def request_code(phone: str) -> OtpRequestResult:
             school_id=None,
             target_type="otp_challenge",
             target_id=challenge.id,
-            metadata={"account_found": user is not None},
+            metadata={"account_found": user is not None, "delivered": delivered},
         )
 
     echo = settings.DEBUG and settings.OTP_ECHO_DEV_CODE and user is not None

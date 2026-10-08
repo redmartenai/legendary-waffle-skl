@@ -52,7 +52,13 @@ class LogoutIn(StrictSerializer):
 
 
 class PasswordChangeIn(StrictSerializer):
-    current_password = serializers.CharField(max_length=256, trim_whitespace=False)
+    current_password = serializers.CharField(
+        max_length=256,
+        trim_whitespace=False,
+        required=False,
+        allow_blank=True,
+        help_text="Required unless the account has no password yet (e.g. created by a school; OTP sign-in).",
+    )
     new_password = serializers.CharField(max_length=256, trim_whitespace=False)
 
 

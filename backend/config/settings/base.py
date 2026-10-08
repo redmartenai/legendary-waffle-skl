@@ -178,6 +178,7 @@ RATE_LIMITS = {
     "otp_verify_challenge": "10/10m",
     "password_change_user": "5/h",
     "school_lookup_ip": "30/m",
+    "member_create_user": "60/h",
 }
 
 # ----------------------------------------------------------------------------- DRF

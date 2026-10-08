@@ -50,12 +50,6 @@ class MemberCreateIn(StrictSerializer):
     full_name = serializers.CharField(max_length=200)
     email = serializers.EmailField(required=False)
     phone = serializers.CharField(max_length=32, required=False)
-    temporary_password = serializers.CharField(
-        max_length=256,
-        required=False,
-        trim_whitespace=False,
-        help_text="Only used for a new account, which must change it at first sign-in.",
-    )
     role_ids = serializers.ListField(
         child=serializers.UUIDField(), required=False, default=list, max_length=20
     )

@@ -200,5 +200,6 @@ def test_otp_never_appears_in_logs_or_audit(api_client, user, json_logs):
         ("auth.otp.requested", "success"),
         ("auth.otp.verified", "failure"),
         ("auth.otp.verified", "success"),
+        ("identity.phone.verified", "success"),
         ("auth.login", "success"),
     ]

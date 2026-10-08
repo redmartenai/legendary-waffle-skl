@@ -16,7 +16,7 @@ from eduflow.authz import services as authz_services
 from eduflow.authz.api.base import TenantAPIView
 from eduflow.authz.models import MembershipRole, Role
 from eduflow.core.api import TENANT_HEADER, errors
-from eduflow.identity.throttles import SchoolLookupIpThrottle
+from eduflow.identity.throttles import MemberCreateUserThrottle, SchoolLookupIpThrottle
 
 from .. import selectors, services
 from . import serializers as s
@@ -80,6 +80,10 @@ def _roles_in_school(actor: Any, role_ids: list[Any]) -> list[Role]:
 class MembershipListView(TenantAPIView):
     required_permissions = {"GET": "user.read", "POST": "user.create"}
 
+    def get_throttles(self) -> list[Any]:
+        # Adding members looks accounts up by email and phone, so it is rate-limited per admin.
+        return [MemberCreateUserThrottle()] if self.request.method == "POST" else []
+
     @extend_schema(
         tags=TAG,
         summary="List members (within the caller's data scope)",
@@ -93,7 +97,8 @@ class MembershipListView(TenantAPIView):
         tags=TAG,
         summary="Add a member",
         description=(
-            "Attaches an existing account with that email or mobile number, or creates one. An existing "
+            "Creates an account (no password; the person signs in by phone OTP) or attaches an existing "
+            "account, but only through a verified email or mobile number: otherwise `409`. An existing "
             "account's profile is never changed. Giving roles also requires `role.assign`, and only roles "
             "whose "
             "permissions the caller holds school-wide."
@@ -113,7 +118,6 @@ class MembershipListView(TenantAPIView):
             full_name=data["full_name"],
             email=data.get("email"),
             phone=data.get("phone"),
-            temporary_password=data.get("temporary_password"),
         )
         membership = services.add_member(self.actor, person, roles)
         return Response(s.MembershipOut(selectors.member_detail(self.actor, membership.pk)).data, status=201)

@@ -205,7 +205,7 @@ class PasswordChangeView(AuthenticatedAPIView):
         body.is_valid(raise_exception=True)
         services.change_password(
             request_user(request),
-            body.validated_data["current_password"],
+            body.validated_data.get("current_password", ""),
             body.validated_data["new_password"],
             keep=_current_session(request),
         )

@@ -65,6 +65,12 @@ class User(AbstractBaseUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deactivated_at = models.DateTimeField(null=True, blank=True)
+    # Set when the person proved control of the identifier (phone: a successful OTP sign-in) or when it was
+    # entered by a trusted party (platform staff). Schools can only attach an *existing* account through a
+    # verified identifier, so nobody can pre-register someone else's email or phone and capture the
+    # memberships other schools later grant to it (docs/security/multitenancy.md#adding-members).
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    phone_verified_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     EMAIL_FIELD = "email"

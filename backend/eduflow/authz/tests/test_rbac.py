@@ -301,9 +301,13 @@ def test_add_member_with_roles_needs_role_assign(school, make_member, client_for
     )
 
 
-def test_add_member_attaches_existing_account_without_editing_it(school, admin, make_user):
+def test_add_member_attaches_a_verified_account_without_editing_it(school, admin, make_user):
+    from django.utils import timezone
+
     _, client = admin
-    existing = make_user(email="existing@example.test", full_name="Real Name")
+    existing = make_user(
+        email="existing@example.test", full_name="Real Name", email_verified_at=timezone.now()
+    )
     response = client.post(
         "/api/v1/memberships", {"full_name": "Renamed", "email": "EXISTING@example.test"}, format="json"
     )
@@ -313,14 +317,19 @@ def test_add_member_attaches_existing_account_without_editing_it(school, admin, 
     assert response.json()["user"]["id"] == str(existing.id)
 
 
-def test_new_member_with_temporary_password_must_change_it(school, admin):
+def test_schools_cannot_set_passwords_on_new_accounts(school, admin):
+    from eduflow.identity.models import User
+
     _, client = admin
     response = client.post(
         "/api/v1/memberships",
         {"full_name": "Temp", "email": "temp@example.test", "temporary_password": "Temporary-pass-42"},
         format="json",
     )
-    assert response.status_code == 201
-    from eduflow.identity.models import User
-
-    assert User.objects.get(email="temp@example.test").must_change_password is True
+    assert response.status_code == 400
+    assert response.json()["error"]["fields"] == {"temporary_password": ["Unknown field."]}
+    created = client.post("/api/v1/memberships", {"full_name": "New", "phone": "9822222222"}, format="json")
+    assert created.status_code == 201
+    user = User.objects.get(phone="+919822222222")
+    assert not user.has_usable_password()
+    assert user.phone_verified_at is None

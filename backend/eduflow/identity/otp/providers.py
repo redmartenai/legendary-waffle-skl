@@ -38,6 +38,10 @@ class SmsProvider(Protocol):
 
 
 class DisabledSmsProvider:
+    # The OTP service refuses every request up front (503) when the provider is not enabled, so the
+    # response never depends on whether the number has an account.
+    enabled = False
+
     def send(self, phone: str, message: str) -> None:
         raise SmsUnavailable("No SMS provider is configured (OTP_SMS_PROVIDER).")
 
