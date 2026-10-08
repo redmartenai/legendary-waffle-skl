@@ -1,0 +1,15 @@
+# Only what the image needs. Never secrets, never local environments.
+.venv/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+.env.*
+*.log
+celerybeat-schedule*
+Dockerfile
+.dockerignore

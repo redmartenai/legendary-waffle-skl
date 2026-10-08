@@ -1,0 +1,148 @@
+# EduFlow local development stack.
+#
+# Run from the repository root:   docker compose up --build
+# (the root compose.yaml includes this file and supplies .env for interpolation).
+#
+# Every published port is bound to 127.0.0.1, so nothing is exposed to the network by default. To
+# let a phone on the same Wi-Fi reach the API, set API_BIND=0.0.0.0 in .env (development only).
+#
+# Images are pinned by digest. Object storage uses RustFS, an S3-compatible server: official MinIO
+# images are no longer publicly distributed (see docs/ARCHITECTURE_DECISIONS.md, ADR-017).
+
+name: eduflow
+
+x-backend: &backend
+  build:
+    context: ../../backend
+    target: dev
+  image: eduflow-backend:dev
+  env_file:
+    - path: ../../.env
+      required: true
+  environment:
+    # Container-network addresses override the host-oriented values in .env.
+    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+    CELERY_RESULT_BACKEND: redis://redis:6379/2
+    STORAGE_ENDPOINT_URL: http://storage:9000
+    STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+    STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+    DJANGO_READ_DOT_ENV: "false"
+  volumes:
+    - ../../backend:/app
+    - backend-venv-guard:/app/.venv  # keeps a host .venv (Windows) out of the Linux container
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  postgres:
+    image: postgres:17.11-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    command: ["redis-server", "--appendonly", "yes", "--save", ""]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  storage:
+    image: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
+    environment:
+      RUSTFS_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${STORAGE_SECRET_KEY}
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS: http://127.0.0.1:${STORAGE_CONSOLE_PORT:-9001}
+    ports:
+      - "127.0.0.1:${STORAGE_PORT:-9000}:9000"
+      - "127.0.0.1:${STORAGE_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  # One-shot: apply migrations and make sure the private bucket exists, then exit. The long-running
+  # services start only after it succeeds, so they never race a half-migrated database.
+  migrate:
+    <<: *backend
+    command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py ensure_storage_bucket"]
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      storage: { condition: service_healthy }
+
+  backend:
+    <<: *backend
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    ports:
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    <<: *backend
+    command: ["celery", "-A", "config", "worker", "--loglevel", "INFO", "--queues", "default", "--concurrency", "2", "--without-gossip", "--without-mingle"]
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping --destination celery@$$HOSTNAME --timeout 5 | grep -q pong"]
+      interval: 20s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "config", "beat", "--loglevel", "INFO", "--schedule", "/tmp/celerybeat-schedule"]
+    # Beat serves no HTTP, so the image's HTTP healthcheck does not apply. Beat writes its schedule
+    # file within seconds of starting and keeps it current while it runs.
+    healthcheck:
+      test: ["CMD-SHELL", "find /tmp -maxdepth 1 -name 'celerybeat-schedule*' -mmin -10 | grep -q ."]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 15s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  backend-venv-guard:
+  postgres-data:
+  redis-data:
+  storage-data:

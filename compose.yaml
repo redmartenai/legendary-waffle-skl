@@ -1,0 +1,7 @@
+name: eduflow
+
+# Entry point for `docker compose` from the repository root. The stack itself is defined in
+# infra/docker/compose.yaml. Variables come from ./.env (copy .env.example; never commit .env).
+include:
+  - path: infra/docker/compose.yaml
+    env_file: .env
