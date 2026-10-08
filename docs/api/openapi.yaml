@@ -552,10 +552,11 @@ paths:
           description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
     post:
       operationId: memberships_create
-      description: Attaches an existing account with that email or mobile number,
-        or creates one. An existing account's profile is never changed. Giving roles
-        also requires `role.assign`, and only roles whose permissions the caller holds
-        school-wide.
+      description: 'Creates an account (no password; the person signs in by phone
+        OTP) or attaches an existing account, but only through a verified email or
+        mobile number: otherwise `409`. An existing account''s profile is never changed.
+        Giving roles also requires `role.assign`, and only roles whose permissions
+        the caller holds school-wide.'
       summary: Add a member
       parameters:
       - in: header
@@ -1732,12 +1733,6 @@ components:
           type: string
           minLength: 1
           maxLength: 32
-        temporary_password:
-          type: string
-          minLength: 1
-          description: Only used for a new account, which must change it at first
-            sign-in.
-          maxLength: 256
         role_ids:
           type: array
           items:
@@ -1934,14 +1929,14 @@ components:
       properties:
         current_password:
           type: string
-          minLength: 1
+          description: Required unless the account has no password yet (e.g. created
+            by a school; OTP sign-in).
           maxLength: 256
         new_password:
           type: string
           minLength: 1
           maxLength: 256
       required:
-      - current_password
       - new_password
     PasswordLoginInRequest:
       type: object
