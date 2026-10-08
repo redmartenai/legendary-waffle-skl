@@ -51,6 +51,20 @@ def production_problems(settings: Mapping[str, Any]) -> list[str]:
     if not settings.get("SECURE_SSL_REDIRECT") and not settings.get("SECURE_PROXY_SSL_HEADER"):
         problems.append("Production must redirect to HTTPS or trust a TLS-terminating proxy header.")
 
+    provider = str(settings.get("OTP_SMS_PROVIDER") or "")
+    if provider.endswith((".ConsoleSmsProvider", ".MemorySmsProvider")):
+        problems.append("OTP_SMS_PROVIDER must not be a development or test provider in production.")
+
+    if settings.get("RATE_LIMITS_ENABLED") is False:
+        problems.append("RATE_LIMITS_ENABLED must be true in production.")
+
+    if "DATABASE_RLS_ROLE" in settings and not settings.get("DATABASE_RLS_ROLE"):
+        problems.append("DATABASE_RLS_ROLE must be set in production, so Row-Level Security applies.")
+
+    jwt_key = str(settings.get("JWT_SIGNING_KEY") or "")
+    if "JWT_SIGNING_KEY" in settings and len(jwt_key) < MIN_SECRET_KEY_LENGTH:
+        problems.append(f"JWT_SIGNING_KEY must be at least {MIN_SECRET_KEY_LENGTH} characters.")
+
     db = (settings.get("DATABASES") or {}).get("default", {})
     if db.get("PASSWORD") in (None, "", "postgres", "eduflow", "password"):
         problems.append("The production database password is missing or a well-known default.")
