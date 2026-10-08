@@ -171,7 +171,11 @@ CELERY_TASK_SOFT_TIME_LIMIT = 240
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_BEAT_SCHEDULE = {
-    "core.heartbeat": {"task": "eduflow.core.tasks.heartbeat", "schedule": 300.0},
+    # Interval schedules first fire one interval after beat starts.
+    "core.heartbeat": {
+        "task": "eduflow.core.tasks.heartbeat",
+        "schedule": env.float("CELERY_HEARTBEAT_SECONDS", default=300.0),
+    },
 }
 
 # ----------------------------------------------------------------------------- logging

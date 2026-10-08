@@ -29,6 +29,8 @@ x-backend: &backend
     STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
     STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
     DJANGO_READ_DOT_ENV: "false"
+    # Short in dev so the smoke test can observe beat -> worker within a minute.
+    CELERY_HEARTBEAT_SECONDS: "20"
   volumes:
     - ../../backend:/app
     - backend-venv-guard:/app/.venv  # keeps a host .venv (Windows) out of the Linux container
