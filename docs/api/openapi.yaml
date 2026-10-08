@@ -4,6 +4,412 @@ info:
   version: 1.0.0
   description: EduFlow School Operating System API. See docs/api/conventions.md.
 paths:
+  /api/v1/audit-events:
+    get:
+      operationId: audit_events_list
+      summary: The school's audit trail (newest first, cursor-paginated)
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: action
+        schema:
+          type: string
+        description: Exact action, e.g. `authz.role.updated`.
+      - in: query
+        name: actor_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: cursor
+        schema:
+          type: string
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+      tags:
+      - audit
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditEventOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+  /api/v1/auth/logout:
+    post:
+      operationId: auth_logout_create
+      description: Revokes the session of the access token used, so its access and
+        refresh tokens stop working immediately. Optionally also revokes the session
+        of `refresh`, if it belongs to the same user.
+      summary: Sign out of this session
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+  /api/v1/auth/logout-all:
+    post:
+      operationId: auth_logout_all_create
+      summary: Sign out everywhere
+      tags:
+      - auth
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+  /api/v1/auth/otp/request:
+    post:
+      operationId: auth_otp_request_create
+      description: The response is identical whether or not the number has an account.
+        Codes expire after 5 minutes and allow 5 attempts.
+      summary: Send a one-time sign-in code by SMS
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpRequestInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OtpRequestInRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpRequestOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
+            header'
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`service_unavailable`'
+  /api/v1/auth/otp/verify:
+    post:
+      operationId: auth_otp_verify_create
+      description: Every failure (wrong, expired, used or locked code) returns the
+        same `401 invalid_code`.
+      summary: Sign in with a one-time code
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpVerifyInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OtpVerifyInRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
+            header'
+  /api/v1/auth/password/change:
+    post:
+      operationId: auth_password_change_create
+      description: Signs out every other session. Clears `must_change_password`.
+      summary: Change password
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
+            header'
+  /api/v1/auth/password/login:
+    post:
+      operationId: auth_password_login_create
+      description: Starts a session and returns a 10-minute access token and a single-use
+        refresh token. Unknown account, wrong password and inactive account all return
+        the same `401 invalid_credentials`.
+      summary: Sign in with email or mobile number and password
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordLoginInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordLoginInRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
+            header'
+  /api/v1/auth/sessions:
+    get:
+      operationId: auth_sessions_list
+      summary: List my active sessions
+      tags:
+      - auth
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+  /api/v1/auth/sessions/{session_id}:
+    delete:
+      operationId: auth_sessions_destroy
+      summary: Revoke one of my sessions
+      parameters:
+      - in: path
+        name: session_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - auth
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+  /api/v1/auth/token/refresh:
+    post:
+      operationId: auth_token_refresh_create
+      description: 'Returns a new access token **and a new refresh token**; the one
+        sent is no longer valid. Sending an already-used refresh token is treated
+        as theft: the whole session is revoked and the response is `401 not_authenticated`.'
+      summary: Rotate a refresh token
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RefreshInRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPairOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
+            header'
   /api/v1/health/live:
     get:
       operationId: health_live_retrieve
@@ -40,8 +446,1247 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReadinessStatus'
           description: ''
+  /api/v1/me:
+    get:
+      operationId: me_retrieve
+      description: Lists active memberships in active schools, with roles. Needs no
+        `X-School-Id`.
+      summary: The signed-in user and their schools
+      tags:
+      - identity
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+  /api/v1/me/permissions:
+    get:
+      operationId: me_permissions_retrieve
+      description: 'The union of the caller''s roles. For display only: every request
+        is authorized server-side.'
+      summary: My effective permissions in this school
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - authz
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyPermissionsOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+  /api/v1/memberships:
+    get:
+      operationId: memberships_list
+      summary: List members (within the caller's data scope)
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - tenancy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MembershipOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: memberships_create
+      description: Attaches an existing account with that email or mobile number,
+        or creates one. An existing account's profile is never changed. Giving roles
+        also requires `role.assign`, and only roles whose permissions the caller holds
+        school-wide.
+      summary: Add a member
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - tenancy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MemberCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/memberships/{membership_id}:
+    get:
+      operationId: memberships_retrieve
+      summary: A member
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: membership_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tenancy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: memberships_partial_update
+      summary: Activate or deactivate a member in this school
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: membership_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tenancy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMembershipUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMembershipUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/memberships/{membership_id}/roles:
+    post:
+      operationId: memberships_roles_create
+      summary: Give a member a role
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: membership_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tenancy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleAssignInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleAssignInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/memberships/{membership_id}/roles/{role_id}:
+    delete:
+      operationId: memberships_roles_destroy
+      summary: Remove a role from a member
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: membership_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: role_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tenancy
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/permissions:
+    get:
+      operationId: permissions_list
+      summary: The permission catalogue
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - authz
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+  /api/v1/platform/schools:
+    get:
+      operationId: platform_schools_list
+      description: Platform administration. Tenant restrictions are lifted only after
+        the caller is verified.
+      summary: List schools
+      tags:
+      - platform
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SchoolOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: platform_schools_create
+      description: Creates the school with its system roles and, optionally, its first
+        school admin.
+      summary: Create a school
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchoolCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SchoolCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchoolOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/platform/schools/{school_id}:
+    get:
+      operationId: platform_schools_retrieve
+      description: Platform administration. Tenant restrictions are lifted only after
+        the caller is verified.
+      summary: A school
+      parameters:
+      - in: path
+        name: school_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - platform
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchoolOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: platform_schools_partial_update
+      description: A deactivated school is unreachable for all its members at once.
+      summary: Rename, activate or deactivate a school
+      parameters:
+      - in: path
+        name: school_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSchoolPatchInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSchoolPatchInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchoolOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+  /api/v1/platform/users/{user_id}:
+    patch:
+      operationId: platform_users_partial_update
+      description: Deactivation signs the user out of every session immediately.
+      summary: Activate or deactivate an account
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserPatchInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserPatchInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+  /api/v1/roles:
+    get:
+      operationId: roles_list
+      summary: List roles
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - authz
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: roles_create
+      description: Only permissions the caller holds with `school` scope can be granted.
+      summary: Create a custom role
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - authz
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+  /api/v1/roles/{role_id}:
+    get:
+      operationId: roles_retrieve
+      summary: A role
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: role_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - authz
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: roles_partial_update
+      description: The `school_admin` role is locked. Only permissions the caller
+        holds school-wide can change.
+      summary: Rename a role or replace its permissions
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: role_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - authz
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    delete:
+      operationId: roles_destroy
+      summary: Delete a custom role
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: role_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - authz
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/school:
+    get:
+      operationId: school_retrieve
+      summary: The current school
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - tenancy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchoolOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    patch:
+      operationId: school_partial_update
+      summary: Update the current school
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - tenancy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSchoolUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSchoolUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchoolOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+  /api/v1/schools/lookup:
+    get:
+      operationId: schools_lookup_retrieve
+      description: 'Public: the sign-in screen finds a school by its short code. Returns
+        only public fields.'
+      summary: Find a school by code (public)
+      parameters:
+      - in: query
+        name: code
+        schema:
+          type: string
+        required: true
+      tags:
+      - tenancy
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchoolPublicOut'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
+            header'
 components:
   schemas:
+    AdminPersonInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        email:
+          type: string
+          format: email
+          minLength: 1
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 32
+        temporary_password:
+          type: string
+          minLength: 1
+          maxLength: 256
+      required:
+      - full_name
+    AuditEventOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        occurred_at:
+          type: string
+          format: date-time
+          readOnly: true
+        actor_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          readOnly: true
+        action:
+          type: string
+          readOnly: true
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/OutcomeEnum'
+          readOnly: true
+        target_type:
+          type: string
+          readOnly: true
+        target_id:
+          type: string
+          readOnly: true
+        request_id:
+          type: string
+          readOnly: true
+        ip:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+        metadata:
+          readOnly: true
+      required:
+      - action
+      - actor_id
+      - id
+      - ip
+      - metadata
+      - occurred_at
+      - outcome
+      - request_id
+      - target_id
+      - target_type
+    AuthMethodEnum:
+      enum:
+      - password
+      - otp
+      type: string
+      description: |-
+        * `password` - Password
+        * `otp` - One-time code
+    AuthSessionOut:
+      type: object
+      properties:
+        access:
+          type: string
+          description: 'JWT access token. Send as `Authorization: Bearer <access>`.'
+        refresh:
+          type: string
+          description: 'Opaque refresh token. Single use: each refresh returns a new
+            one.'
+        token_type:
+          type: string
+          default: Bearer
+        access_expires_in:
+          type: integer
+          description: Seconds (600).
+        refresh_expires_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/UserOut'
+        memberships:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyMembershipOut'
+      required:
+      - access
+      - access_expires_in
+      - memberships
+      - refresh
+      - refresh_expires_at
+      - user
+    ErrorBody:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        fields:
+          type: object
+          additionalProperties: {}
+        retry_after_seconds:
+          type: integer
+        request_id:
+          type: string
+      required:
+      - code
+      - message
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+      required:
+      - error
     HealthStatus:
       type: object
       properties:
@@ -49,6 +1694,357 @@ components:
           $ref: '#/components/schemas/StatusEnum'
       required:
       - status
+    LogoutInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+          maxLength: 128
+    MeOut:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/UserOut'
+        memberships:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyMembershipOut'
+      required:
+      - memberships
+      - user
+    MemberCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        email:
+          type: string
+          format: email
+          minLength: 1
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 32
+        temporary_password:
+          type: string
+          minLength: 1
+          description: Only used for a new account, which must change it at first
+            sign-in.
+          maxLength: 256
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 20
+      required:
+      - full_name
+    MemberUserOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        email:
+          type:
+          - string
+          - 'null'
+          format: email
+        phone:
+          type:
+          - string
+          - 'null'
+        is_active:
+          type: boolean
+      required:
+      - email
+      - full_name
+      - id
+      - is_active
+      - phone
+    MembershipOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          $ref: '#/components/schemas/MemberUserOut'
+        is_active:
+          type: boolean
+          readOnly: true
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/MembershipRoleOut'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - is_active
+      - roles
+      - user
+    MembershipRoleOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        department:
+          type: string
+      required:
+      - department
+      - id
+      - key
+      - name
+      - title
+    MyMembershipOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        school:
+          $ref: '#/components/schemas/SchoolRefOut'
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/MembershipRoleOut'
+      required:
+      - id
+      - roles
+      - school
+    MyPermissionsOut:
+      type: object
+      properties:
+        school_id:
+          type: string
+          format: uuid
+        permissions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              enum:
+              - platform
+              - school
+              - campus
+              - academic_year
+              - department
+              - section
+              - assigned
+              - child
+              - self
+              - own
+              type: string
+              description: |-
+                * `platform` - Platform-wide
+                * `school` - Whole school
+                * `campus` - Own campus
+                * `academic_year` - Academic year
+                * `department` - Own department
+                * `section` - Assigned classes/sections
+                * `assigned` - Assigned students
+                * `child` - Own children
+                * `self` - Own record
+                * `own` - Records they created
+      required:
+      - permissions
+      - school_id
+    OtpRequestInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 32
+      required:
+      - phone
+    OtpRequestOut:
+      type: object
+      properties:
+        challenge_id:
+          type: string
+          format: uuid
+        expires_in:
+          type: integer
+          description: Seconds until the code expires.
+        resend_in:
+          type: integer
+          description: Seconds before another code can be requested.
+        dev_code:
+          type: string
+          description: Local development only (DEBUG and OTP_ECHO_DEV_CODE). Never
+            in production.
+      required:
+      - challenge_id
+      - expires_in
+      - resend_in
+    OtpVerifyInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        challenge_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 8
+          pattern: ^[0-9]{4,8}$
+      required:
+      - challenge_id
+      - code
+    OutcomeEnum:
+      enum:
+      - success
+      - failure
+      - denied
+      type: string
+      description: |-
+        * `success` - Success
+        * `failure` - Failure
+        * `denied` - Denied
+    PasswordChangeInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        current_password:
+          type: string
+          minLength: 1
+          maxLength: 256
+        new_password:
+          type: string
+          minLength: 1
+          maxLength: 256
+      required:
+      - current_password
+      - new_password
+    PasswordLoginInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+          description: Email address or mobile number.
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+        remember:
+          type: boolean
+          default: false
+      required:
+      - identifier
+      - password
+    PatchedMembershipUpdateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        is_active:
+          type: boolean
+    PatchedRoleUpdateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        permissions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              enum:
+              - platform
+              - school
+              - campus
+              - academic_year
+              - department
+              - section
+              - assigned
+              - child
+              - self
+              - own
+              type: string
+              description: |-
+                * `platform` - Platform-wide
+                * `school` - Whole school
+                * `campus` - Own campus
+                * `academic_year` - Academic year
+                * `department` - Own department
+                * `section` - Assigned classes/sections
+                * `assigned` - Assigned students
+                * `child` - Own children
+                * `self` - Own record
+                * `own` - Records they created
+          description: Replaces the role's whole permission set.
+    PatchedSchoolPatchInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        is_active:
+          type: boolean
+    PatchedSchoolUpdateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+    PatchedUserPatchInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        is_active:
+          type: boolean
+    PermissionOut:
+      type: object
+      properties:
+        codename:
+          type: string
+        description:
+          type: string
+      required:
+      - codename
+      - description
     ReadinessStatus:
       type: object
       properties:
@@ -67,6 +2063,257 @@ components:
       required:
       - checks
       - status
+    RefreshInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+          maxLength: 128
+      required:
+      - refresh
+    RoleAssignInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        role_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          default: ''
+          maxLength: 100
+        department:
+          type: string
+          minLength: 1
+          default: ''
+          maxLength: 100
+      required:
+      - role_id
+    RoleCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        based_on:
+          type: string
+          format: uuid
+          description: Copy permissions from this role.
+        permissions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              enum:
+              - platform
+              - school
+              - campus
+              - academic_year
+              - department
+              - section
+              - assigned
+              - child
+              - self
+              - own
+              type: string
+              description: |-
+                * `platform` - Platform-wide
+                * `school` - Whole school
+                * `campus` - Own campus
+                * `academic_year` - Academic year
+                * `department` - Own department
+                * `section` - Assigned classes/sections
+                * `assigned` - Assigned students
+                * `child` - Own children
+                * `self` - Own record
+                * `own` - Records they created
+      required:
+      - name
+    RoleOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        key:
+          type: string
+          readOnly: true
+          description: Stable machine key, unique within the school.
+          pattern: ^[-a-zA-Z0-9_]+$
+        name:
+          type: string
+          readOnly: true
+        is_system:
+          type: boolean
+          readOnly: true
+        based_on:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          readOnly: true
+        permissions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - based_on
+      - created_at
+      - id
+      - is_system
+      - key
+      - name
+      - permissions
+      - updated_at
+    SchoolCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[a-z0-9][a-z0-9-]{1,31}$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        admin:
+          allOf:
+          - $ref: '#/components/schemas/AdminPersonInRequest'
+          description: The first school admin. Optional.
+      required:
+      - code
+      - name
+    SchoolOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          description: Short public code used to find the school.
+          pattern: ^[-a-zA-Z0-9_]+$
+        name:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - code
+      - created_at
+      - id
+      - is_active
+      - name
+      - updated_at
+    SchoolPublicOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          description: Short public code used to find the school.
+          pattern: ^[-a-zA-Z0-9_]+$
+        name:
+          type: string
+          readOnly: true
+      required:
+      - code
+      - id
+      - name
+    SchoolRefOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+      required:
+      - code
+      - id
+      - name
+    SessionOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        auth_method:
+          allOf:
+          - $ref: '#/components/schemas/AuthMethodEnum'
+          readOnly: true
+        remember:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_used_at:
+          type: string
+          format: date-time
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Absolute end of the session, whatever the rotation.
+        user_agent:
+          type: string
+          readOnly: true
+        current:
+          type: boolean
+          readOnly: true
+      required:
+      - auth_method
+      - created_at
+      - current
+      - expires_at
+      - id
+      - last_used_at
+      - remember
+      - user_agent
     StatusEnum:
       enum:
       - ok
@@ -75,3 +2322,73 @@ components:
       description: |-
         * `ok` - ok
         * `unavailable` - unavailable
+    TokenPairOut:
+      type: object
+      properties:
+        access:
+          type: string
+          description: 'JWT access token. Send as `Authorization: Bearer <access>`.'
+        refresh:
+          type: string
+          description: 'Opaque refresh token. Single use: each refresh returns a new
+            one.'
+        token_type:
+          type: string
+          default: Bearer
+        access_expires_in:
+          type: integer
+          description: Seconds (600).
+        refresh_expires_at:
+          type: string
+          format: date-time
+      required:
+      - access
+      - access_expires_in
+      - refresh
+      - refresh_expires_at
+    UserOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type:
+          - string
+          - 'null'
+          format: email
+          readOnly: true
+        phone:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+        language:
+          type: string
+          readOnly: true
+        is_platform_admin:
+          type: boolean
+          readOnly: true
+        must_change_password:
+          type: boolean
+          readOnly: true
+      required:
+      - email
+      - full_name
+      - id
+      - is_platform_admin
+      - language
+      - must_change_password
+      - phone
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token from `/auth/password/login`, `/auth/otp/verify` or
+        `/auth/token/refresh`. Valid for 10 minutes and only while its session is
+        active (see docs/security/token-lifecycle.md).
