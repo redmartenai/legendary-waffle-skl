@@ -1,0 +1,12 @@
+# Normalise line endings in the repository. Shell scripts and Docker files must stay LF, or they
+# break inside Linux containers when checked out on Windows.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
+uv.lock linguist-generated=true
+docs/api/openapi.yaml linguist-generated=true
