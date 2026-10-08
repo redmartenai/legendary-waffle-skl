@@ -14,6 +14,11 @@ from eduflow.core.views import not_found
 api_v1: list[URLPattern | URLResolver] = [
     path("health/live", LiveView.as_view(), name="health-live"),
     path("health/ready", ReadyView.as_view(), name="health-ready"),
+    path("", include("eduflow.identity.api.urls")),
+    path("", include("eduflow.tenancy.api.urls")),
+    path("", include("eduflow.tenancy.api.platform_urls")),
+    path("", include("eduflow.authz.api.urls")),
+    path("", include("eduflow.audit.api.urls")),
 ]
 
 if settings.API_DOCS_ENABLED:

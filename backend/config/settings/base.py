@@ -4,6 +4,8 @@ All environment-specific values come from environment variables (ADR-014). Nothi
 contain a real secret. Environment modules (dev/test/prod) import this and override.
 """
 
+import hashlib
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -26,14 +28,22 @@ ALLOWED_HOSTS: list[str] = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
+    "django.contrib.postgres",
     "rest_framework",
     "drf_spectacular",
     "eduflow.core",
+    "eduflow.identity",
+    "eduflow.tenancy",
+    "eduflow.authz",
+    "eduflow.audit",
 ]
 
 MIDDLEWARE = [
     "eduflow.core.middleware.RequestContextMiddleware",
+    # Every request (except health probes) runs under the RLS-enforced database role (ADR-018).
+    "eduflow.core.middleware.DatabaseContextMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "eduflow.core.middleware.SecurityHeadersMiddleware",
     "django.middleware.common.CommonMiddleware",
     # DRF views using token auth are CSRF-exempt by design. This protects any cookie-authenticated
     # endpoint (the planned web-console session, ADR-005).
@@ -75,6 +85,16 @@ CACHES = {
     }
 }
 
+# Requests and tasks switch to this NOLOGIN role so RLS policies apply (core migration 0001, ADR-018).
+# Set it empty only when the app already connects as a dedicated non-owner login role.
+DATABASE_RLS_ROLE = env.str("DATABASE_RLS_ROLE", default="eduflow_app")
+
+# ----------------------------------------------------------------------------- identity
+AUTH_USER_MODEL = "identity.User"
+# Phone numbers without a country code are national numbers of this country (the client assumes India).
+PHONE_DEFAULT_COUNTRY_CODE = env.str("PHONE_DEFAULT_COUNTRY_CODE", default="91")
+PHONE_NATIONAL_NUMBER_LENGTH = env.int("PHONE_NATIONAL_NUMBER_LENGTH", default=10)
+
 # ----------------------------------------------------------------------------- passwords
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
@@ -93,10 +113,72 @@ SECURE_REFERRER_POLICY = "same-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 CSRF_FAILURE_VIEW = "eduflow.core.views.csrf_failure"
+# Prepared for the web console's future cookie session (docs/security/authentication.md#web-sessions).
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+# No CORS headers are sent, so browsers refuse cross-origin calls. The API is meant to be same-origin
+# behind the reverse proxy; a cross-origin web client needs an explicit allow-list
+# (docs/security/authentication.md).
+
+# How many reverse proxies we operate in front of the app. X-Forwarded-For is trusted only that far
+# (eduflow.core.client_ip). 0 = ignore the header and use the socket address.
+TRUSTED_PROXY_COUNT = env.int("TRUSTED_PROXY_COUNT", default=0)
 
 # Feature flags that must never be on in production (enforced by config_validation).
 OTP_ECHO_DEV_CODE = env.bool("OTP_ECHO_DEV_CODE", default=False)
 API_DOCS_ENABLED = env.bool("API_DOCS_ENABLED", default=False)
+
+# ----------------------------------------------------------------------------- tokens (ADR-005)
+ACCESS_TOKEN_LIFETIME = timedelta(minutes=env.int("ACCESS_TOKEN_MINUTES", default=10))
+REFRESH_TOKEN_LIFETIME = timedelta(days=env.int("REFRESH_TOKEN_DAYS", default=1))
+REFRESH_TOKEN_REMEMBER_LIFETIME = timedelta(days=env.int("REFRESH_TOKEN_REMEMBER_DAYS", default=30))
+# A session ends this long after sign-in, however often it is refreshed.
+AUTH_SESSION_MAX_AGE = timedelta(days=env.int("AUTH_SESSION_MAX_DAYS", default=90))
+AUTH_RECORD_RETENTION_DAYS = env.int("AUTH_RECORD_RETENTION_DAYS", default=30)
+# A separate key lets access tokens be invalidated without rotating SECRET_KEY. By default it is derived from
+# SECRET_KEY with a domain label, so the raw SECRET_KEY is never used as an HMAC key for tokens.
+JWT_SIGNING_KEY = (
+    env.str("JWT_SIGNING_KEY", default="")
+    or hashlib.sha256(b"eduflow.jwt-signing:" + SECRET_KEY.encode()).hexdigest()
+)
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": ACCESS_TOKEN_LIFETIME,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": JWT_SIGNING_KEY,
+    "AUDIENCE": "eduflow-api",
+    "ISSUER": "eduflow",
+    "LEEWAY": 0,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "sub",
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "JTI_CLAIM": "jti",
+    "UPDATE_LAST_LOGIN": False,
+}
+
+# ----------------------------------------------------------------------------- OTP
+# See docs/security/otp.md.
+OTP_SMS_PROVIDER = env.str("OTP_SMS_PROVIDER", default="eduflow.identity.otp.providers.DisabledSmsProvider")
+OTP_LENGTH = 6
+OTP_TTL_SECONDS = env.int("OTP_TTL_SECONDS", default=300)
+OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)
+OTP_RESEND_SECONDS = env.int("OTP_RESEND_SECONDS", default=30)
+
+# ----------------------------------------------------------------------------- rate limits (ADR-016)
+# "<requests>/<window>", window = s|m|h|d with an optional multiplier, e.g. "5/15m".
+RATE_LIMITS_ENABLED = env.bool("RATE_LIMITS_ENABLED", default=True)
+RATE_LIMITS = {
+    "login_ip": "20/5m",
+    "login_identifier": "5/5m",
+    "refresh_ip": "60/m",
+    "otp_request_ip": "10/h",
+    "otp_request_phone": "3/10m",
+    "otp_verify_ip": "30/10m",
+    "otp_verify_challenge": "10/10m",
+    "password_change_user": "5/h",
+    "school_lookup_ip": "30/m",
+}
 
 # ----------------------------------------------------------------------------- DRF
 REST_FRAMEWORK = {
@@ -105,9 +187,8 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.JSONParser",
         "rest_framework.parsers.MultiPartParser",
     ],
-    # Authentication arrives in Phase 2. Until then nothing authenticates and the
-    # default permission denies, so an endpoint is only public if it opts in explicitly.
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    # Deny by default: an endpoint is public only if it opts in explicitly (AllowAny).
+    "DEFAULT_AUTHENTICATION_CLASSES": ["eduflow.identity.authentication.AccessTokenAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "UNAUTHENTICATED_USER": None,
     "EXCEPTION_HANDLER": "eduflow.core.exceptions.api_exception_handler",
@@ -123,6 +204,7 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": r"/api/v1",
     "COMPONENT_SPLIT_REQUEST": True,
     "OAS_VERSION": "3.1.0",
+    "ENUM_NAME_OVERRIDES": {"DataScopeEnum": "eduflow.authz.catalog.DataScope"},
 }
 
 # ----------------------------------------------------------------------------- object storage
@@ -175,6 +257,10 @@ CELERY_BEAT_SCHEDULE = {
     "core.heartbeat": {
         "task": "eduflow.core.tasks.heartbeat",
         "schedule": env.float("CELERY_HEARTBEAT_SECONDS", default=300.0),
+    },
+    "identity.purge_expired_auth_records": {
+        "task": "eduflow.identity.tasks.purge_expired_auth_records",
+        "schedule": 6 * 3600.0,
     },
 }
 

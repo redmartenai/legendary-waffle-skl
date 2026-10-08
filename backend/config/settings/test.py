@@ -13,6 +13,15 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 # Object storage is exercised in the Docker/CI integration checks. Unit tests stub it.
 STORAGE_HEALTHCHECK_ENABLED = env.bool("STORAGE_HEALTHCHECK_ENABLED", default=False)
 
+# A test-only app with toy Section/Student models, used to exercise data scopes before the real domain
+# modules exist (eduflow/authz/tests/scopeapp).
+INSTALLED_APPS = [*INSTALLED_APPS, "eduflow.authz.tests.scopeapp"]  # noqa: F405
+
+# Tests read sent codes from MemorySmsProvider.outbox; nothing is ever sent.
+OTP_SMS_PROVIDER = "eduflow.identity.otp.providers.MemorySmsProvider"
+OTP_ECHO_DEV_CODE = False
+RATE_LIMITS_ENABLED = True
+
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
