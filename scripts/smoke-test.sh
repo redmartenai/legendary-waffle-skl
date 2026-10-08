@@ -63,8 +63,9 @@ pass "worker log lines carry request_id=$RID"
 
 echo "== Celery beat"
 dc logs --no-color beat | grep -qi "beat: Starting" || fail "beat did not start"
-# Beat sends the heartbeat as soon as it starts; the worker must then run it.
-for _ in $(seq 1 30); do
+# The dev stack schedules the heartbeat every 20 s (first run 20 s after beat starts); the worker
+# must then run it.
+for _ in $(seq 1 45); do
   dc logs --no-color worker | grep -q "eduflow.core.tasks.heartbeat.*succeeded" && break
   sleep 2
 done
