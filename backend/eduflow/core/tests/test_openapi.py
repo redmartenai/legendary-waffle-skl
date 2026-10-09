@@ -123,3 +123,26 @@ def test_phase_4_invitation_contract_is_documented(tmp_path):
         "security" not in paths["/api/v1/invitations/preview"]["post"]
         or {} in paths["/api/v1/invitations/preview"]["post"]["security"]
     )
+
+
+def test_phase_5_academic_engine_contract_is_documented(tmp_path):
+    out = tmp_path / "openapi.yaml"
+    call_command("spectacular", "--file", str(out), "--validate", "--fail-on-warn")
+    schema = yaml.safe_load(out.read_text(encoding="utf-8"))
+    paths = schema["paths"]
+    for resource in ("terms", "rooms", "timetables", "timetable-periods", "timetable-slots", "lessons"):
+        assert f"/api/v1/{resource}" in paths
+        assert f"/api/v1/{resource}/{{id}}" in paths
+    for action in ("publish", "archive", "copy"):
+        assert f"/api/v1/timetables/{{id}}/{action}" in paths
+    for path in (
+        "/api/v1/schedule/me",
+        "/api/v1/staff/{id}/schedule",
+        "/api/v1/students/{id}/schedule",
+        "/api/v1/sections/{id}/schedule",
+    ):
+        names = {p["name"] for p in paths[path]["get"]["parameters"]}
+        assert {"X-School-Id", "date_from", "date_to"} <= names
+    assert "delete" not in paths["/api/v1/lessons/{id}"]
+    slot = schema["components"]["schemas"]["SlotOut"]["properties"]
+    assert not {"is_live", "effective_from", "start_time", "staff_id"} & set(slot)  # copies stay internal
