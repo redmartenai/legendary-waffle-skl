@@ -36,7 +36,7 @@ class RoleDetailView(TenantAPIView):
 
 ## Permissions
 
-Codenames are `<resource>.<action>`. The catalogue is `authz/catalog.py::PERMISSIONS` (34 in Phase 2):
+Codenames are `<resource>.<action>`. The catalogue is `authz/catalog.py::PERMISSIONS` (34 from Phase 2, 53 since Phase 3):
 
 | Resource | Actions |
 |---|---|
@@ -52,6 +52,20 @@ Codenames are `<resource>.<action>`. The catalogue is `authz/catalog.py::PERMISS
 | `library`, `transport`, `hostel` | `read`, `manage` |
 
 Domain permissions such as `student.*` and `attendance.*` exist now so that roles are complete from day one. Their endpoints arrive with their modules.
+
+### Phase 3 domain
+
+| Resource | Actions | Default grants |
+|---|---|---|
+| `campus`, `academic_year`, `department`, `grade`, `subject` | `read`, `manage` | `read`: every role, school-wide (no personal data). `manage`: school admin, principal. |
+| `section` | `read`, `manage` | `read`: teacher `section`, parent `child`, student `self`, office roles `school` |
+| `staff` | `read`, `create`, `update` | HR, school admin and principal `school`; teacher and staff `self` |
+| `student` | `read`, `create`, `update` | Phase 2 defaults |
+| `guardian` | `read`, `manage` | teacher `section`, parent and student `self`, accountant `school` |
+| `enrollment` | `read`, `manage` | teacher `section`, parent `child`, student `self`, office roles `school` |
+| `teacher_assignment` | `read`, `manage` | teacher `self` + `section`, parent `child`, student `self` |
+
+Phase 3 writes need the write permission with `school` scope, and linking an account to a profile also needs school-wide `user.update` ([phase-3.md](../architecture/phase-3.md#authorization-and-data-scopes)). The scope rules for these resources are in `people/policies.py` (see [phase-3.md](../architecture/phase-3.md#authorization-and-data-scopes)).
 
 ### Adding a permission
 

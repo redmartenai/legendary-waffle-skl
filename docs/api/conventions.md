@@ -82,7 +82,7 @@ Rules:
 
 ## Pagination
 
-- Canonical resource lists use cursor pagination.
+- Canonical resource lists use cursor pagination: `{"next", "previous", "results"}`, with `?cursor=` and `?page_size=` (default 50, max 200), newest first. Filters are typed query parameters; an invalid value is `400 validation_error`.
 - Experience endpoints keep the envelopes the client already uses: `{items, page, page_size, pages, total}`, or `{items, limit}`.
 
 ## Idempotency
@@ -119,3 +119,4 @@ Client types are generated from this file with `openapi-typescript` once the cli
 |---|---|
 | 2026-10-08 | v1 created: `health/live`, `health/ready`, error envelope, request IDs |
 | 2026-10-08 | Phase 2: `auth/*` (password, OTP, refresh, logout, sessions), `me`, `me/permissions`, `schools/lookup`, `school`, `memberships`, `roles`, `permissions`, `audit-events`, `platform/*`; error codes `tenant_required`, `tenant_forbidden`, `invalid_credentials`, `invalid_code`, `password_change_required`, `conflict`, `service_unavailable`; bearer security scheme |
+| 2026-10-08 | Phase 3: `campuses`, `academic-years`, `departments`, `grades`, `sections`, `subjects`, `staff`, `students`, `guardians`, `student-guardians`, `enrollments` (+ `/end`, `/transfer`), `teacher-assignments`; school profile fields on `school` and `platform/schools`. Health status enum renamed `HealthStatusEnum` in the schema (values unchanged). |

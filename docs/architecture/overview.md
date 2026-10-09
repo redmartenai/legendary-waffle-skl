@@ -32,7 +32,9 @@ backend/                Django project (uv-managed)
   eduflow/tenancy/      schools, memberships, tenant resolution, tenant tasks (Phase 2)
   eduflow/authz/        permissions, roles, data scopes, base API views (Phase 2)
   eduflow/audit/        append-only audit trail (Phase 2)
-  eduflow/<module>/     domain modules (from Phase 3)
+  eduflow/academics/    campuses, academic years, departments, grades, sections, subjects (Phase 3)
+  eduflow/people/       staff, students, guardians, enrollments, teacher assignments (Phase 3)
+  eduflow/<module>/     later domain modules
 apps/mobile/            Expo client (imported in Phase 6 from origin/eduflow-new)
 infra/docker/           Compose stack
 scripts/                smoke test and dev scripts
