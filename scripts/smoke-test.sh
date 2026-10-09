@@ -13,6 +13,8 @@
 #   - Celery beat is running and scheduling
 #   - Phase 2: sign-in, forced password change, tenant resolution, refresh rotation and reuse detection,
 #     and PostgreSQL RLS as the application role
+#   - Phase 3: academic year (overlap refused), grade, section, student and enrollment through the API,
+#     and RLS on the new tables
 #   - no secret from .env, and no token issued during the run, appears anywhere in the stack's logs
 set -euo pipefail
 
@@ -21,6 +23,10 @@ API="http://127.0.0.1:${API_PORT:-8000}"
 pass() { printf '  \033[32mPASS\033[0m %s\n' "$1"; }
 fail() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; exit 1; }
 dc() { docker compose "$@"; }
+# Matches are counted rather than tested with "grep -q": under pipefail, grep -q exiting early kills
+# "docker compose logs" with SIGPIPE once the logs are long (a stack that has been up for hours).
+logs() { dc logs --no-color "$@"; }
+has_log() { [[ "$(logs "$1" | grep -Ec -- "$2")" -gt 0 ]]; }
 
 echo "== HTTP"
 live=$(curl -fsS "$API/api/v1/health/live") || fail "liveness endpoint unreachable"
@@ -60,19 +66,19 @@ PY
 grep -Eq "\"request_id\": *\"$RID\"" <<<"$result" || fail "worker did not receive request ID: $result"
 pass "worker returned $result"
 sleep 1
-dc logs --no-color worker | grep "$RID" | grep -q task_started || fail "worker log has no task_started line for $RID"
+has_log worker "$RID.*task_started|task_started.*$RID" || fail "worker log has no task_started line for $RID"
 pass "worker log lines carry request_id=$RID"
 
 echo "== Celery beat"
-dc logs --no-color beat | grep -qi "beat: Starting" || fail "beat did not start"
+has_log beat "[Bb]eat: Starting" || fail "beat did not start"
 # The dev stack schedules the heartbeat every 20 s (first run 20 s after beat starts); the worker
 # must then run it.
 for _ in $(seq 1 45); do
-  dc logs --no-color worker | grep -q "eduflow.core.tasks.heartbeat.*succeeded" && break
+  has_log worker "eduflow.core.tasks.heartbeat.*succeeded" && break
   sleep 2
 done
-dc logs --no-color beat | grep -q "Sending due task core.heartbeat" || fail "beat never dispatched core.heartbeat"
-dc logs --no-color worker | grep -q "eduflow.core.tasks.heartbeat.*succeeded" || fail "worker never ran the scheduled heartbeat"
+has_log beat "Sending due task core.heartbeat" || fail "beat never dispatched core.heartbeat"
+has_log worker "eduflow.core.tasks.heartbeat.*succeeded" || fail "worker never ran the scheduled heartbeat"
 pass "beat scheduled core.heartbeat and the worker ran it"
 
 echo "== Phase 2: authentication, tenancy, RLS"
@@ -130,8 +136,40 @@ rls=$(dc exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAq
 [[ "$(tr -d '[:space:]' <<<"$rls")" == 0 ]] || fail "RLS: app role without tenant context sees $rls memberships"
 pass "RLS: the application role sees no tenant rows without a tenant context"
 
+echo "== Phase 3: core school domain"
+dc exec -T backend python manage.py sync_rbac >/dev/null || fail "sync_rbac failed"
+pass "sync_rbac: permission catalogue and system roles up to date"
+# The reuse-detection check above revoked the admin's session: sign in again.
+code=$(post -d "{\"identifier\":\"$ADMIN_EMAIL\",\"password\":\"$NEW_PW\"}" "$API/api/v1/auth/password/login")
+[[ "$code" == 200 ]] || fail "school admin re-login: $code"
+ACCESS=$(jget '["access"]' </tmp/eduflow-body.json)
+auth=(-H "Authorization: Bearer $ACCESS" -H "X-School-Id: $SCHOOL_ID")
+code=$(post "${auth[@]}" -d '{"name":"2026-27","start_date":"2026-06-01","end_date":"2027-03-31"}' "$API/api/v1/academic-years")
+[[ "$code" == 201 ]] || fail "create academic year: $code $(cat /tmp/eduflow-body.json)"
+YEAR_ID=$(jget '["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d '{"name":"2026-27b","start_date":"2026-12-01","end_date":"2027-06-30"}' "$API/api/v1/academic-years")
+[[ "$code" == 400 ]] || fail "overlapping academic year accepted: $code"
+code=$(post "${auth[@]}" -d '{"name":"Grade 5","code":"g5","display_order":5}' "$API/api/v1/grades")
+[[ "$code" == 201 ]] || fail "create grade: $code"
+GRADE_ID=$(jget '["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d "{\"academic_year_id\":\"$YEAR_ID\",\"grade_id\":\"$GRADE_ID\",\"name\":\"A\",\"code\":\"5a\"}" "$API/api/v1/sections")
+[[ "$code" == 201 ]] || fail "create section: $code $(cat /tmp/eduflow-body.json)"
+SECTION_ID=$(jget '["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d '{"admission_number":"SMOKE-1","first_name":"Smoke","last_name":"Student"}' "$API/api/v1/students")
+[[ "$code" == 201 ]] || fail "create student: $code"
+STUDENT_ID=$(jget '["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d "{\"student_id\":\"$STUDENT_ID\",\"section_id\":\"$SECTION_ID\",\"roll_number\":\"1\"}" "$API/api/v1/enrollments")
+[[ "$code" == 201 ]] || fail "enroll: $code $(cat /tmp/eduflow-body.json)"
+grep -q "\"$GRADE_ID\"" /tmp/eduflow-body.json || fail "enrollment grade not taken from the section"
+code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' "${auth[@]}" "$API/api/v1/students?section_id=$SECTION_ID")
+[[ "$code" == 200 ]] && grep -q "$STUDENT_ID" /tmp/eduflow-body.json || fail "student list by section: $code"
+pass "year (overlap refused), grade, section, student and enrollment through the API"
+rls=$(dc exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAqc "SET ROLE eduflow_app; SELECT (SELECT count(*) FROM people_student) + (SELECT count(*) FROM people_enrollment) + (SELECT count(*) FROM academics_section);"')
+[[ "$(tr -d '[:space:]' <<<"$rls")" == 0 ]] || fail "RLS: app role without tenant context sees $rls Phase 3 rows"
+pass "RLS: Phase 3 tables hidden from the application role without a tenant context"
+
 echo "== Secrets never logged"
-logs=$(dc logs --no-color)
+logs=$(logs)
 for token in "$STAFF_ACCESS" "$ACCESS" "$REFRESH" "$ROTATED" "$TEMP_PW" "$NEW_PW" "$STAFF_PW"; do
   if grep -qF -- "$token" <<<"$logs"; then fail "a token or password issued during the smoke test appears in logs"; fi
 done

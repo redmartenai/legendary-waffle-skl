@@ -87,9 +87,9 @@ jobs:
       - name: Migrations apply cleanly
         run: uv run python manage.py migrate --noinput
         env: { DJANGO_SETTINGS_MODULE: config.settings.test }
-      - name: Migrations roll back and re-apply (Phase 2 apps, including RLS policies)
+      - name: Migrations roll back and re-apply (Phase 2 and 3 apps, including RLS policies)
         run: |
-          for app in scopeapp audit authz tenancy identity core; do
+          for app in scopeapp people academics audit authz tenancy identity core; do
             uv run python manage.py migrate "$app" zero --noinput -v 0
           done
           uv run python manage.py migrate --noinput -v 0
