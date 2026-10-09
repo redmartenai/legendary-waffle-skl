@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "eduflow.audit",
     "eduflow.academics",
     "eduflow.people",
+    "eduflow.invitations",
 ]
 
 MIDDLEWARE = [
@@ -167,6 +168,24 @@ OTP_TTL_SECONDS = env.int("OTP_TTL_SECONDS", default=300)
 OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)
 OTP_RESEND_SECONDS = env.int("OTP_RESEND_SECONDS", default=30)
 
+# ----------------------------------------------------------------------------- invitations (ADR-025)
+# docs/security/invitations.md. The secret is appended to INVITATION_LINK_BASE; put it after "#" so it stays
+# in the browser and never reaches server or proxy logs.
+INVITATION_TTL_HOURS = env.int("INVITATION_TTL_HOURS", default=72)
+INVITATION_RESEND_SECONDS = env.int("INVITATION_RESEND_SECONDS", default=60)
+INVITATION_LINK_BASE = env.str("INVITATION_LINK_BASE", default="http://localhost:8081/invite#token=")
+
+# ----------------------------------------------------------------------------- email (delivery adapter)
+# Disabled by default, so email-based flows answer "unavailable" until a real backend is configured.
+EMAIL_BACKEND = env.str("EMAIL_BACKEND", default="eduflow.identity.delivery.DisabledEmailBackend")
+DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="EduFlow <no-reply@eduflow.invalid>")
+EMAIL_HOST = env.str("EMAIL_HOST", default="localhost")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env.str("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env.str("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_TIMEOUT = 10
+
 # ----------------------------------------------------------------------------- rate limits (ADR-016)
 # "<requests>/<window>", window = s|m|h|d with an optional multiplier, e.g. "5/15m".
 RATE_LIMITS_ENABLED = env.bool("RATE_LIMITS_ENABLED", default=True)
@@ -181,6 +200,9 @@ RATE_LIMITS = {
     "password_change_user": "5/h",
     "school_lookup_ip": "30/m",
     "member_create_user": "60/h",
+    "invitation_manage_user": "60/h",
+    "invitation_ip": "30/10m",
+    "invitation_token": "10/10m",
 }
 
 # ----------------------------------------------------------------------------- DRF
@@ -270,6 +292,10 @@ CELERY_BEAT_SCHEDULE = {
     "core.heartbeat": {
         "task": "eduflow.core.tasks.heartbeat",
         "schedule": env.float("CELERY_HEARTBEAT_SECONDS", default=300.0),
+    },
+    "invitations.expire_due": {
+        "task": "eduflow.invitations.tasks.expire_due_invitations",
+        "schedule": 15 * 60.0,
     },
     "identity.purge_expired_auth_records": {
         "task": "eduflow.identity.tasks.purge_expired_auth_records",

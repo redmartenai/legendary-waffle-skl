@@ -19,6 +19,7 @@ INSTALLED_APPS = [*INSTALLED_APPS, "eduflow.authz.tests.scopeapp"]  # noqa: F405
 
 # Tests read sent codes from MemorySmsProvider.outbox; nothing is ever sent.
 OTP_SMS_PROVIDER = "eduflow.identity.otp.providers.MemorySmsProvider"
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 OTP_ECHO_DEV_CODE = False
 RATE_LIMITS_ENABLED = True
 
