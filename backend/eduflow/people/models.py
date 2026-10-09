@@ -317,6 +317,11 @@ class TeacherAssignment(TenantModel):
                 condition=Q(status=AssignmentStatus.ACTIVE, subject__isnull=True),
                 name="people_assignment_staff_homeroom_uniq",
             ),
+            # Target of the composite foreign key that keeps a timetable slot's teacher, section and subject
+            # equal to its assignment's (timetable migration 0002).
+            models.UniqueConstraint(
+                fields=["id", "staff", "section", "subject", "school"], name="people_assignment_slot_key_uniq"
+            ),
         ]
         indexes = [
             models.Index(fields=["school", "staff", "status"], name="people_assignment_staff_idx"),
