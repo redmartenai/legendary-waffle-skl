@@ -77,6 +77,12 @@ class PlatformAPIView(AuthenticatedAPIView):
         if not getattr(request.user, "is_platform_admin", False):
             log.info("platform_denied", view=type(self).__name__)
             self.permission_denied(request)
+        from eduflow.tenancy.context import host_school
+
+        if host_school(request) is not None:
+            # Platform administration never runs on a school's own host (ADR-029).
+            log.info("platform_denied_on_school_host", view=type(self).__name__)
+            self.permission_denied(request)
 
     def initial(self, request: Request, *args: Any, **kwargs: Any) -> None:
         super().initial(request, *args, **kwargs)

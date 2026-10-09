@@ -95,3 +95,31 @@ def test_prod_settings_refuse_otp_echo_and_placeholder_key():
 def test_prod_settings_pass_django_deploy_checks():
     result = _run_prod({}, "check", "--deploy", "--fail-level", "WARNING")
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    ("override", "fragment"),
+    [
+        ({"DOMAIN_VERIFIER": "eduflow.branding.verification.MemoryVerifier"}, "DOMAIN_VERIFIER"),
+        (
+            {
+                "DOMAIN_VERIFIER": "eduflow.branding.verification.DnsOverHttpsVerifier",
+                "DOMAIN_VERIFICATION_DOH_URL": "http://resolver.example/dns-query",
+            },
+            "DOMAIN_VERIFICATION_DOH_URL",
+        ),
+        ({"WHITE_LABEL_BASE_DOMAIN": "*.eduflow.app"}, "WHITE_LABEL_BASE_DOMAIN"),
+        ({"WHITE_LABEL_BASE_DOMAIN": "localhost"}, "WHITE_LABEL_BASE_DOMAIN"),
+    ],
+)
+def test_white_label_production_rules(override, fragment):
+    assert any(fragment in problem for problem in production_problems({**SECURE, **override}))
+
+
+def test_white_label_production_settings_that_pass():
+    ok = {
+        "DOMAIN_VERIFIER": "eduflow.branding.verification.DnsOverHttpsVerifier",
+        "DOMAIN_VERIFICATION_DOH_URL": "https://cloudflare-dns.com/dns-query",
+        "WHITE_LABEL_BASE_DOMAIN": "eduflow.app",
+    }
+    assert production_problems({**SECURE, **ok}) == []

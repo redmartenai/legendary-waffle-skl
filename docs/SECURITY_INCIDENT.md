@@ -1,4 +1,8 @@
-# Security Incident: Malicious Code on `origin/master`
+# Security Incidents: Malicious Code on Remote Branches
+
+Two repositories carried the same developer-targeting payload. **Incident 1** (`miniature-pancake-app`, contained 2026-10-08) and **Incident 2** (`legendary-waffle-skl`, this repository, **open**).
+
+# Incident 1: Malicious Code on `origin/master` of `miniature-pancake-app`
 
 | | |
 |---|---|
@@ -116,3 +120,87 @@ No machine in this session executed the payloads. The current development machin
 - If a `master` branch reappears on the remote, check its SHA before trusting it. Branch protection on `main` and a required-review rule are recommended.
 - Do not open untrusted repositories in VS Code with workspace trust. Keep `task.allowAutomaticTasks` **off** at the user level. Treat any `.vscode/tasks.json` containing `runOn: folderOpen` as suspicious.
 - This repository's CI should not run arbitrary `postinstall` scripts from untrusted branches. CI runs only on this repository's own branches and pull requests.
+
+---
+
+# Incident 2: the same payload in `redmartenai/legendary-waffle-skl` (this repository)
+
+| | |
+|---|---|
+| **Status** | **Open: active exposure.** Both infected branches are live on a public repository. Remote removal awaits owner approval (§I2.6). |
+| **Detected** | 2026-10-09, while preparing the attendance work. Investigated the same day. |
+| **Repository** | `https://github.com/redmartenai/legendary-waffle-skl`: **public**, default branch `main`, 0 forks (GitHub API, read-only, 2026-10-09) |
+| **Infected refs** | `refs/heads/eduflow-new` → `568f4007fec71d66a67f7ec03d0c0e1b2aa31641`; `refs/heads/master` → `217219d7b0098f572cb8469c5c5467e5d783e81b`. Neither branch is protected. |
+| **Not affected** | `main` (`9af9e36`) and the phase branches `phase-2` to `phase-5`. They share no history with either infected branch: the only common root is `9df5678` on `main`. |
+
+Incident 1 (above) concerns a **different repository**, `miniature-pancake-app`. The "clean `eduflow-new`" mentioned there and in CURRENT_STATE §0 is that repository's branch (`8917e43`), not this one's. Here, `eduflow-new` is an older Django backend, not the Expo client.
+
+## I2.1 Evidence
+
+All inspection was static: `git ls-tree`, `git cat-file`, `git log`, `git grep` and `git ls-remote` against remote-tracking refs. **Nothing was checked out, extracted, opened in an editor, decoded or executed.**
+
+| Path | Finding |
+|---|---|
+| `.vscode/tasks.json` | A task labelled `eslint-check` runs `node ./public/fonts/fa-solid-700.fml` (with a Windows `where node` fallback), with `"runOn": "folderOpen"`, `"hide": true`, `"reveal": "never"`, `"echo": false` and `"close": true`. |
+| `.vscode/settings.json` | `"task.allowAutomaticTasks": true`; `"terminal.integrated.hideOnStartup": "always"`; `"debug.openDebug": "neverOpen"`. |
+| `.vscode/launch.json` | Configurations for an unrelated project (SST, `AWS_PROFILE: flo-ct-flo360`). Template residue. |
+| `public/fonts/fa-solid-700.fml` | **Not a font.** 37,541 bytes of printable text on a single line, starting with long runs of tab padding, containing 1,265 `_0x…` identifiers (the obfuscator.io pattern) and one `require`. Real Font Awesome files in the same folder start with font signatures (`wOF2`, `wOFF`, `\0\1\0\0`). Font Awesome has no "solid 700" (solid is weight 900). |
+| `public/fonts/README.md` | Describes an unrelated "Blockchain Explorer application". |
+| Other `public/fonts/*` | Font Awesome 400/900 files with valid signatures. **Nothing in either branch references `public/`**: the folder only carries the payload. |
+
+**Same payload as Incident 1.** The `.fml` blob is `815146da615ce3c82fbbc64c24924353c51958d0` and `tasks.json` is `5335ccb12c6c9cf48268659c5e0afcfecc4333fd`. The whole `.vscode/` + `public/` bundle is byte-identical on both infected branches. Incident 1 recorded the same file sizes and behaviour; that repository's objects are not available here, so blob equality with it could not be confirmed.
+
+## I2.2 How it entered
+
+| Commit | Branch | Author / committer (as recorded, unsigned) | Content |
+|---|---|---|---|
+| `217219d` | `master` | `arya <mukesh@growstack.ai>`, 2026-09-21 12:13 +0530; committer zone −0700 | "Initial commit". The bundle is present from the start. |
+| `436d61e` | `eduflow-new` (root) | same author and timestamp | "Initial commit". **Clean:** the same tree as `217219d` minus the 22-file bundle. |
+| `76aa306` | `eduflow-new` | `koushik-growstack-4915 <koushik@growstack.ai>`, 2026-09-26 | "Add .gitignore and stop tracking generated files". **Clean.** |
+| `568f400` | `eduflow-new` | `koushik-growstack-4915 <koushik@growstack.ai>`, 2026-09-27 +0530; committer zone −0700 | "EduFlow redesign…": 224 files, about 36k lines. **Adds the identical 22-file bundle** alongside the redesign. |
+
+- No commit is signed. Git author fields are self-declared, so **no person is identified as responsible**. The mismatch between author and committer time zones on both infected commits is noted, not interpreted.
+- The rest of `568f400` (Python, HTML, CSS and tests) was scanned for:
+  - dynamic execution and decoding (`exec(`, `eval(`, `subprocess`, `os.system`, `marshal`, `base64.b64decode`, `zlib.decompress`, `__import__`);
+  - hex-escaped strings;
+  - lines longer than 2,000 characters.
+- **No matches.** That is evidence of absence only for these patterns, not a full code review.
+
+## I2.3 Exposure of this machine
+
+- This clone's reflog shows **no checkout of any infected commit**. The only clone and checkout entries are for `main` and the `phase-*` branches.
+- No git hooks (only `.sample` files).
+- Only the stock Git for Windows configuration.
+- No `.vscode`, `.fml` or `api.js` in the working tree.
+- The local prototype `School Om nammah shivaya/eduflow-app` (no git history) has no payload markers. Its `node_modules` was not audited.
+
+## I2.4 Known-good state and smallest remediation
+
+- **Last known-good `eduflow-new`:** `76aa306`.
+- **Known-good content of `568f400`:** its tree without `.vscode/` and `public/`. Nothing references `public/`, and the Font Awesome files in it come from the same untrusted bundle, so dropping them loses nothing the code uses.
+- **`master`:** no legitimate content beyond `436d61e` plus the bundle. Deletion loses nothing.
+
+## I2.5 Local remediation performed
+
+**None was needed in this working tree, and none was done to any branch.** The rules forbid commits, pushes and history rewrites. The infected objects are reachable only through `refs/remotes/origin/{eduflow-new,master}`, are never checked out, and stay as evidence.
+
+## I2.6 Actions requiring the owner's approval (not performed)
+
+1. **Delete `master` on the remote**, guarded so it only deletes the recorded SHA:
+   `git push --force-with-lease=master:217219d7b0098f572cb8469c5c5467e5d783e81b origin :refs/heads/master`
+2. **Remove the payload from `eduflow-new`.** Choose one:
+   - **(a) Delete the branch** (it is an old backend that the new backend replaces):
+     `git push --force-with-lease=eduflow-new:568f4007fec71d66a67f7ec03d0c0e1b2aa31641 origin :refs/heads/eduflow-new`
+   - **(b) Keep its history but neutralise it:** a new commit on `eduflow-new` that deletes `.vscode/` and `public/`. The payload then stays in history, reachable by SHA.
+   - **(c) Rewrite** `568f400` without the bundle and force-push. This destroys history.
+
+   Deleting the branch (a) is the only option that stops casual clones from fetching the payload. GitHub may still serve the commits by SHA until garbage collection, which needs GitHub Support to purge.
+3. **Protect `main`** (required reviews) and restrict who can push new branches.
+4. **People and credentials:** follow §6 of Incident 1 for anyone who opened either branch in VS Code (or Cursor/Windsurf) with workspace trust, or ran `node` on the file. Ask the two committer accounts where the bundle came from; their machines or accounts may be compromised.
+5. **Update local tracking refs** afterwards with `git fetch --prune` (removes the infected remote-tracking refs from this clone).
+
+## I2.7 Remaining uncertainty
+
+- The payload was not deobfuscated or run, so what it does (exfiltration, command-and-control) is unknown.
+- Whether anyone outside this session cloned the public repository and opened an infected branch is unknown.
+- The large redesign commit was pattern-scanned, not line-reviewed.

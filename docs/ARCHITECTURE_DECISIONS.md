@@ -576,3 +576,68 @@ Until Phase 5, every domain write required a school-wide grant (ADR-024). Lesson
 
 - Attendance (Phase 6) will follow the same two steps for teachers' writes.
 - Schedule rules live in one place (`timetable/api/views.py`), and they reuse the existing scope rules.
+
+## ADR-028: Attendance rules the sources left open: lock at the end of the day, corrections approved by someone else. *Accepted (attendance), open for review*
+
+**Context**
+
+ADR-008 fixes the register model and says that changes after "the school's cutoff or lock" go through corrections with approval. Neither the cutoff, the approver, nor the response shapes beyond `ClassRoster` and `AttendanceMonth` are defined anywhere. The source list and every open point are in [architecture/attendance.md](architecture/attendance.md#decisions-for-review).
+
+**Decision**
+
+- **Lock.** A register locks at the end of its date in the school's time zone (`locked_at`). Before that it is re-submitted (full replacement, ADR-008); afterwards each change is a correction. A register first taken for an earlier date is accepted and locked at once.
+- **Corrections.**
+  - Requested with `attendance.update` (the Phase 2 "Correct attendance" permission) on a locked record, with a reason. At most one pending per record.
+  - Decided with a new permission, **`attendance.approve`**: school-wide, held by the school admin and principal.
+  - The approver is never the requester.
+  - Approval applies the change only if the record still has the old status.
+- **Integrity in the database.**
+  - A record's enrollment must belong to that student in that section (composite FK to a new `people_enrollment (id, student, section, school)` key).
+  - A record's section and date are its register's.
+  - Statuses are a `CHECK`.
+- **Access** follows ADR-027:
+  - Narrow writes are scoped, then re-checked against an active assignment.
+  - The month view needs `student.read` and `attendance.read` over the student.
+  - Registers and corrections are whole-class views that parents and students do not see.
+- **Not yet:** period-wise registers, the `AttendanceMarked` outbox event (ADR-010 is not built), holidays (no calendar).
+
+**Consequences**
+
+- A configurable cutoff time, backfill limits or a different approval chain can replace these rules without migrating data.
+- Schools with a single administrator need a second approver for corrections.
+
+## ADR-029: White-label: branding beside the school record, domains proven by DNS, hosts that select but never authorise. *Accepted*
+
+**Context**
+
+Schools on the shared platform need their own name, colours, logo and favicon, and their own address. The client already expects `branding` on the public school record (CURRENT_STATE §7). Hosts and uploaded images are classic attack surfaces: host-header spoofing, domain takeover, and script-carrying images.
+
+**Decision**
+
+- **Branding** lives in a new `branding` module:
+  - colours and logo/favicon references in `SchoolBranding`;
+  - images in `BrandAsset`, private in object storage;
+  - the name stays on `School` and is not copied.
+- **Public branding is a fixed set of public fields** (`selectors.payload`). It is exposed:
+  - in `GET /branding/resolve?host=`;
+  - in `GET /schools/lookup`;
+  - in the invitation preview;
+  - images through `GET /branding/assets/{id}`.
+- **Images are validated by content.** PNG, JPEG and WebP logos; PNG and ICO favicons. SVG and GIF are refused.
+  - They are served by the API with an exact type, `nosniff` and a sandboxing CSP, under immutable IDs.
+  - They are not re-encoded: no image library is added.
+- **Hosts:**
+  - A school is reachable at `<code>.<base domain>` (the code is immutable) and at **verified** custom domains.
+  - Verification is a DNS TXT challenge checked by a pluggable `DOMAIN_VERIFIER`: none by default (manual by EduFlow staff), or DNS-over-HTTPS with the standard library.
+  - A hostname belongs to one school platform-wide.
+  - A daily job disables domains whose proof has lapsed.
+  - The platform can suspend a domain, and the school cannot lift the suspension.
+- **Host binding:** a request on a school's host acts only in that school, and membership is still required. Platform endpoints refuse to run on school hosts.
+- **`ALLOWED_HOSTS` stays wildcard-free.** Custom domains serve the web app by default; serving the API on them requires an explicit host entry.
+- **Permissions:** `branding.manage` and `domain.manage` (school-wide; school admin and principal). Platform staff manage any school through `/platform/...`. Every change is audited.
+
+**Consequences**
+
+- Custom-domain TLS (on-demand certificates) is an edge concern, gated on `GET /branding/resolve`. It is not built.
+- Without a configured verifier, each custom domain needs a manual, audited verification by platform staff.
+- Separate per-school store apps are out of scope: the shared app is themed at run time.

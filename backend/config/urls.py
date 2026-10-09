@@ -23,6 +23,8 @@ api_v1: list[URLPattern | URLResolver] = [
     path("", include("eduflow.people.api.urls")),
     path("", include("eduflow.invitations.api.urls")),
     path("", include("eduflow.timetable.api.urls")),
+    path("", include("eduflow.attendance.api.urls")),
+    path("", include("eduflow.branding.api.urls")),
 ]
 
 if settings.API_DOCS_ENABLED:

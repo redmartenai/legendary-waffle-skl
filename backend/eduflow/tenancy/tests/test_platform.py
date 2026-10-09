@@ -104,7 +104,21 @@ def test_school_lookup_returns_public_fields_only(api_client, make_school):
     school = make_school("lookup-me", name="Lookup School")
     response = api_client.get("/api/v1/schools/lookup?code=LOOKUP-ME")
     assert response.status_code == 200
-    assert response.json() == {"id": str(school.id), "code": "lookup-me", "name": "Lookup School"}
+    body = response.json()
+    branding = body.pop("branding")
+    assert body == {"id": str(school.id), "code": "lookup-me", "name": "Lookup School"}
+    assert set(branding) == {
+        "school",
+        "display_name",
+        "primary_color",
+        "secondary_color",
+        "on_primary",
+        "on_secondary",
+        "logo_url",
+        "favicon_url",
+        "version",
+        "is_default",
+    }  # public branding only (ADR-029)
 
 
 def test_school_lookup_hides_inactive_and_unknown(api_client, make_school):

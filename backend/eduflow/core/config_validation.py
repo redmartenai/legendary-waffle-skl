@@ -68,6 +68,18 @@ def production_problems(settings: Mapping[str, Any]) -> list[str]:
             "(kept out of server logs)."
         )
 
+    # White-label (ADR-029).
+    verifier = str(settings.get("DOMAIN_VERIFIER") or "")
+    if verifier.endswith("MemoryVerifier"):
+        problems.append("DOMAIN_VERIFIER must not be the test verifier in production.")
+    if verifier.endswith("DnsOverHttpsVerifier") and not str(
+        settings.get("DOMAIN_VERIFICATION_DOH_URL") or ""
+    ).startswith("https://"):
+        problems.append("DOMAIN_VERIFICATION_DOH_URL must be an https:// resolver.")
+    base = str(settings.get("WHITE_LABEL_BASE_DOMAIN") or "")
+    if base and (base.startswith(("*", ".")) or "." not in base or "/" in base or ":" in base):
+        problems.append("WHITE_LABEL_BASE_DOMAIN must be a bare domain such as eduflow.app.")
+
     if settings.get("RATE_LIMITS_ENABLED") is False:
         problems.append("RATE_LIMITS_ENABLED must be true in production.")
 

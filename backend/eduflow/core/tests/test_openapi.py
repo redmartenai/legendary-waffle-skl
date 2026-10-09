@@ -146,3 +146,67 @@ def test_phase_5_academic_engine_contract_is_documented(tmp_path):
     assert "delete" not in paths["/api/v1/lessons/{id}"]
     slot = schema["components"]["schemas"]["SlotOut"]["properties"]
     assert not {"is_live", "effective_from", "start_time", "staff_id"} & set(slot)  # copies stay internal
+
+
+def test_attendance_contract_is_documented(tmp_path):
+    out = tmp_path / "openapi.yaml"
+    call_command("spectacular", "--file", str(out), "--validate", "--fail-on-warn")
+    schema = yaml.safe_load(out.read_text(encoding="utf-8"))
+    paths, components = schema["paths"], schema["components"]["schemas"]
+    for path in (
+        "/api/v1/classes/{id}/roster",
+        "/api/v1/classes/{id}/attendance",
+        "/api/v1/students/{id}/attendance",
+        "/api/v1/attendance/sessions",
+        "/api/v1/attendance/sessions/{id}",
+        "/api/v1/attendance/records",
+        "/api/v1/attendance/records/{id}",
+        "/api/v1/attendance/corrections",
+        "/api/v1/attendance/corrections/{id}",
+        "/api/v1/attendance/corrections/{id}/approve",
+        "/api/v1/attendance/corrections/{id}/decline",
+    ):
+        assert path in paths
+    # The client contract (CURRENT_STATE §5): ClassRoster and the exceptions-only submission.
+    roster = components["ClassRosterOut"]["properties"]
+    assert {"class", "date", "marked", "marked_at", "cutoff", "locked", "students"} <= set(roster)
+    assert set(components["RosterStudent"]["properties"]) == {"id", "name", "initials", "roll_no", "status"}
+    assert {"entries", "client_id", "date"} <= set(components["SubmitInRequest"]["properties"])
+    assert {"month", "days", "summary"} <= set(components["AttendanceMonthOut"]["properties"])
+    assert set(components["AttendanceStatusEnum"]["enum"]) == {
+        "present",
+        "absent",
+        "late",
+        "half_day",
+        "excused",
+    }
+    for method in ("post", "patch", "delete"):
+        assert method not in paths["/api/v1/attendance/records/{id}"]
+
+
+def test_white_label_contract_is_documented(tmp_path):
+    out = tmp_path / "openapi.yaml"
+    call_command("spectacular", "--file", str(out), "--validate", "--fail-on-warn")
+    schema = yaml.safe_load(out.read_text(encoding="utf-8"))
+    paths, components = schema["paths"], schema["components"]["schemas"]
+    for path in (
+        "/api/v1/branding",
+        "/api/v1/branding/resolve",
+        "/api/v1/branding/assets/{asset_id}",
+        "/api/v1/branding/logo",
+        "/api/v1/branding/favicon",
+        "/api/v1/domains",
+        "/api/v1/domains/{id}",
+        "/api/v1/domains/{id}/verify",
+        "/api/v1/platform/schools/{school_id}/branding",
+        "/api/v1/platform/schools/{school_id}/domains",
+        "/api/v1/platform/domains/{domain_id}/verify",
+        "/api/v1/platform/domains/{domain_id}/suspend",
+    ):
+        assert path in paths
+    branding = set(components["BrandingOut"]["properties"])
+    assert {"school", "primary_color", "logo_url", "version"} <= branding
+    assert not {"storage_key", "settings", "email", "phone"} & branding  # public fields only
+    assert "storage_key" not in str(components)
+    assert "branding" in components["SchoolPublicOut"]["properties"]
+    assert "branding" in components["InvitationPreviewOut"]["properties"]

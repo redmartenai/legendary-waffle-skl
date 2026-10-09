@@ -8,6 +8,7 @@ from typing import Any
 from rest_framework import serializers
 
 from eduflow.academics.api.serializers import Ref
+from eduflow.branding.api.serializers import BrandingOut
 from eduflow.core.api import StrictSerializer
 from eduflow.identity.api.serializers import AuthSessionOut, MyMembershipOut
 from eduflow.identity.delivery import Channel, mask_address
@@ -103,6 +104,7 @@ class AcceptIn(TokenIn):
 
 class InvitationPreviewOut(serializers.Serializer[Any]):
     school_name = serializers.CharField()
+    branding = BrandingOut(help_text="The inviting school's public branding (ADR-029).")
     kind = serializers.ChoiceField(InvitationKind.choices)
     role_names = serializers.ListField(child=serializers.CharField())
     channel = serializers.ChoiceField(Channel.choices)

@@ -46,7 +46,8 @@ Codenames are `<resource>.<action>`. The catalogue is `authz/catalog.py::PERMISS
 | `permission`, `audit` | `read` |
 | `student` | `read`, `create`, `update` |
 | `staff` | `read`, `update` |
-| `attendance`, `assessment` | `read`, `create`, `update` |
+| `attendance` | `read`, `create`, `update`, `approve` (attendance phase) |
+| `assessment` | `read`, `create`, `update` |
 | `timetable`, `report` | `read` |
 | `fee` | `read`, `update` |
 | `library`, `transport`, `hostel` | `read`, `manage` |
@@ -85,6 +86,24 @@ Invitation roles follow the escalation guard below: a principal cannot invite wi
 | `timetable.read` (Phase 2) | teacher and staff `school`, parent `child`, student `self` | Covers timetables, periods, slots and schedules |
 | `lesson.read` | teacher `self` + `section`, parent `child`, student `self` | |
 | `lesson.manage` | teacher `self`; school admin and principal `school` | **The first write with a narrower scope than the school:** a teacher records lessons of their own classes. The service re-checks that the caller is the slot's teacher with an active assignment (ADR-027). |
+
+### Attendance (Phase 6)
+
+| Permission | Default grants | Notes |
+|---|---|---|
+| `attendance.read` (Phase 2) | teacher `section` + `assigned`, parent `child`, student `self`, school admin and principal `school` | Registers and corrections: `section`, `campus`. Records: also `child` and `self`. |
+| `attendance.create` (Phase 2) | teacher `section`; school admin and principal `school` | Take a register and read its roster. Without `school` scope the service requires an active assignment in the section. |
+| `attendance.update` (Phase 2) | teacher `section`; school admin and principal `school` | Request a correction of a locked register (same re-check) |
+| `attendance.approve` (new) | school admin, principal (`school`) | Approve or decline corrections; never one's own request (ADR-028) |
+
+### White-label (ADR-029)
+
+| Permission | Default grants | Notes |
+|---|---|---|
+| `branding.manage` | school admin, principal (`school`) | Colours, logo, favicon. Reading branding needs only `school.read`. |
+| `domain.manage` | school admin, principal (`school`) | Custom domains (add, verify, disable, remove, primary) |
+
+Platform administrators manage any school's branding and domains through `/platform/schools/{id}/branding`, `/platform/schools/{id}/domains` and `/platform/domains/{id}/verify|suspend`. These endpoints refuse to run on a school's own host. A host never authorises anything: on a school host, the request is bound to that school and membership is still required ([multitenancy.md](multitenancy.md#tenant-resolution)).
 
 Schedules are authorized by their subject: a teacher's, student's or section's schedule needs that record to be visible under both its own read permission and `timetable.read` (ADR-027).
 

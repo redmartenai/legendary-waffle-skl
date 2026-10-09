@@ -36,6 +36,8 @@ backend/                Django project (uv-managed)
   eduflow/people/       staff, students, guardians, enrollments, teacher assignments (Phase 3)
   eduflow/invitations/  verified invitations: staff, student and guardian onboarding and account linking (Phase 4)
   eduflow/timetable/    timetables, periods, slots, lessons and schedules (Phase 5)
+  eduflow/attendance/   daily section registers, records and corrections (Phase 6, attendance)
+  eduflow/branding/     white-label: school colours, logo, favicon, subdomains and custom domains
   eduflow/<module>/     later domain modules
 apps/mobile/            Expo client (imported in Phase 6 from origin/eduflow-new)
 infra/docker/           Compose stack

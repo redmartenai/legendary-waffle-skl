@@ -4,7 +4,7 @@ from .base import *  # noqa: F403
 from .base import env
 
 DEBUG = False
-ALLOWED_HOSTS = ["testserver", "localhost"]
+ALLOWED_HOSTS = ["testserver", "localhost", ".eduflow.test", "portal.greenvalley.test"]
 API_DOCS_ENABLED = True  # so the schema endpoints themselves are covered by tests
 
 # Hashing speed only matters to tests, and tests never handle real passwords.
@@ -31,3 +31,9 @@ from eduflow.core.logging import build_logging_config  # noqa: E402
 
 LOG_FORMAT = "json"
 LOGGING = build_logging_config(level="INFO", fmt="json")
+
+# White-label: an in-memory store for brand images, a scriptable DNS verifier, a test base domain.
+STORAGES = {**STORAGES, "branding": {"BACKEND": "django.core.files.storage.InMemoryStorage"}}  # noqa: F405
+DOMAIN_VERIFIER = "eduflow.branding.verification.MemoryVerifier"
+WHITE_LABEL_BASE_DOMAIN = "eduflow.test"
+WHITE_LABEL_PLATFORM_HOSTS = ["app.eduflow.test"]

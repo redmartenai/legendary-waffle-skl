@@ -5,17 +5,20 @@ from typing import Any
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from eduflow.branding.api.serializers import BrandingOut
 from eduflow.core.api import StrictSerializer
 from eduflow.identity.api.serializers import MembershipRoleOut
 
 from ..models import Membership, School, validate_timezone
 
 
-class SchoolPublicOut(serializers.ModelSerializer[School]):
-    class Meta:
-        model = School
-        fields = ("id", "code", "name")
-        read_only_fields = fields
+class SchoolPublicOut(serializers.Serializer[Any]):
+    """The public school lookup: identifiers plus the school's public branding (``branding``, ADR-029)."""
+
+    id = serializers.UUIDField()
+    code = serializers.CharField()
+    name = serializers.CharField()
+    branding = BrandingOut(help_text="The school's public branding.")
 
 
 SCHOOL_PROFILE_FIELDS = (

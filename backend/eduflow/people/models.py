@@ -257,6 +257,11 @@ class Enrollment(TenantModel):
                 condition=Q(transferred_to__isnull=True) | Q(status=EnrollmentStatus.TRANSFERRED),
                 name="people_enrollment_transfer_check",
             ),
+            # Target of the composite foreign key that ties an attendance record to an enrollment of that
+            # student in that section (attendance migration 0002).
+            models.UniqueConstraint(
+                fields=["id", "student", "section", "school"], name="people_enrollment_record_key_uniq"
+            ),
         ]
         indexes = [
             models.Index(fields=["school", "section", "status"], name="people_enrollment_section_idx"),

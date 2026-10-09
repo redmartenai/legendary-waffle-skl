@@ -59,7 +59,22 @@ def test_preview_shows_safe_details_only(world, invite, api_client):
     sent = invite()
     response = api_client.post("/api/v1/invitations/preview", {"token": sent.token}, format="json")
     assert response.status_code == 200
-    assert response.json() == {
+    body = response.json()
+    branding = body.pop("branding")
+    assert set(branding) == {
+        "school",
+        "display_name",
+        "primary_color",
+        "secondary_color",
+        "on_primary",
+        "on_secondary",
+        "logo_url",
+        "favicon_url",
+        "version",
+        "is_default",
+    }  # public branding only (ADR-029)
+    assert set(branding["school"]) == {"id", "code", "name", "short_name"}
+    assert body == {
         "school_name": world.school.name,
         "kind": "staff",
         "role_names": ["Teacher"],

@@ -41,7 +41,15 @@ class SchoolLookupView(APIView):
         school = selectors.active_school_by_code(str(request.query_params.get("code", ""))[:32])
         if school is None:
             raise NotFound()
-        return Response(s.SchoolPublicOut(school).data)
+        from eduflow.branding.selectors import public_branding  # branding builds on tenancy, not the reverse
+
+        payload = {
+            "id": school.pk,
+            "code": school.code,
+            "name": school.name,
+            "branding": public_branding(school),
+        }
+        return Response(s.SchoolPublicOut(payload).data)
 
 
 class CurrentSchoolView(TenantAPIView):

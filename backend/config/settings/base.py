@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     "eduflow.people",
     "eduflow.invitations",
     "eduflow.timetable",
+    "eduflow.attendance",
+    "eduflow.branding",
 ]
 
 MIDDLEWARE = [
@@ -204,6 +206,7 @@ RATE_LIMITS = {
     "invitation_manage_user": "60/h",
     "invitation_ip": "30/10m",
     "invitation_token": "10/10m",
+    "branding_public_ip": "120/m",
 }
 
 # ----------------------------------------------------------------------------- DRF
@@ -244,6 +247,9 @@ SPECTACULAR_SETTINGS = {
         "TimetableStatusEnum": "eduflow.timetable.models.TimetableStatus",
         "SlotKindEnum": "eduflow.timetable.models.SlotKind",
         "LessonStatusEnum": "eduflow.timetable.models.LessonStatus",
+        "AttendanceStatusEnum": "eduflow.attendance.models.AttendanceStatus",
+        "CorrectionStatusEnum": "eduflow.attendance.models.CorrectionStatus",
+        "DomainStatusEnum": "eduflow.branding.models.DomainStatus",
         "HealthStatusEnum": ["ok", "unavailable"],
     },
 }
@@ -257,25 +263,68 @@ STORAGE_REGION = env.str("STORAGE_REGION", default="us-east-1")
 STORAGE_ACCESS_KEY = env.str("STORAGE_ACCESS_KEY", default="")
 STORAGE_SECRET_KEY = env.str("STORAGE_SECRET_KEY", default="")
 STORAGE_HEALTHCHECK_ENABLED = env.bool("STORAGE_HEALTHCHECK_ENABLED", default=True)
+_S3_OPTIONS = {
+    "bucket_name": STORAGE_BUCKET,
+    "endpoint_url": STORAGE_ENDPOINT_URL,
+    "region_name": STORAGE_REGION,
+    "access_key": STORAGE_ACCESS_KEY,
+    "secret_key": STORAGE_SECRET_KEY,
+    "default_acl": None,
+    "querystring_auth": True,
+    "querystring_expire": 60,
+    "file_overwrite": False,
+    "addressing_style": "path",
+    "signature_version": "s3v4",
+}
 STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
-        "OPTIONS": {
-            "bucket_name": STORAGE_BUCKET,
-            "endpoint_url": STORAGE_ENDPOINT_URL,
-            "region_name": STORAGE_REGION,
-            "access_key": STORAGE_ACCESS_KEY,
-            "secret_key": STORAGE_SECRET_KEY,
-            "default_acl": None,
-            "querystring_auth": True,
-            "querystring_expire": 60,
-            "file_overwrite": False,
-            "addressing_style": "path",
-            "signature_version": "s3v4",
-        },
-    },
+    "default": {"BACKEND": "storages.backends.s3.S3Storage", "OPTIONS": _S3_OPTIONS},
+    # Brand images (ADR-029): the same private bucket by default, under "branding/<school_id>/".
+    "branding": {"BACKEND": "storages.backends.s3.S3Storage", "OPTIONS": _S3_OPTIONS},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+
+# ----------------------------------------------------------------------------- white-label (ADR-029)
+# Schools are reachable at <code>.<WHITE_LABEL_BASE_DOMAIN> (empty: no subdomains) and at verified custom
+# domains. Platform hosts serve the platform's own branding. The API itself still answers only on
+# DJANGO_ALLOWED_HOSTS (no wildcards in production): see docs/deployment/white-label.md.
+WHITE_LABEL_BASE_DOMAIN = env.str("WHITE_LABEL_BASE_DOMAIN", default="")
+WHITE_LABEL_PLATFORM_HOSTS: list[str] = env.list("WHITE_LABEL_PLATFORM_HOSTS", default=[])
+WHITE_LABEL_RESERVED_LABELS = [
+    "www",
+    "app",
+    "api",
+    "admin",
+    "platform",
+    "console",
+    "static",
+    "assets",
+    "media",
+    "cdn",
+    "mail",
+    "smtp",
+    "auth",
+    "login",
+    "status",
+    "docs",
+    "help",
+    "support",
+    "blog",
+    "dev",
+    "staging",
+    "test",
+]
+BRANDING_DEFAULTS = {
+    "name": env.str("BRANDING_DEFAULT_NAME", default="EduFlow"),
+    "primary_color": env.str("BRANDING_DEFAULT_PRIMARY_COLOR", default="#1E40AF"),
+    "secondary_color": env.str("BRANDING_DEFAULT_SECONDARY_COLOR", default="#0EA5E9"),
+}
+# How custom-domain ownership is checked: DisabledVerifier (manual, by the platform), DnsOverHttpsVerifier.
+DOMAIN_VERIFIER = env.str("DOMAIN_VERIFIER", default="eduflow.branding.verification.DisabledVerifier")
+DOMAIN_VERIFICATION_DOH_URL = env.str(
+    "DOMAIN_VERIFICATION_DOH_URL", default="https://cloudflare-dns.com/dns-query"
+)
+# Binds a request made on a school's own host to that school (see eduflow.tenancy.context).
+TENANT_HOST_RESOLVER = "eduflow.branding.hosts.school_for_request_host"
 
 # ----------------------------------------------------------------------------- celery
 CELERY_BROKER_URL = env.str("CELERY_BROKER_URL", default=REDIS_URL)
@@ -302,6 +351,10 @@ CELERY_BEAT_SCHEDULE = {
     "invitations.expire_due": {
         "task": "eduflow.invitations.tasks.expire_due_invitations",
         "schedule": 15 * 60.0,
+    },
+    "branding.recheck_domains": {
+        "task": "eduflow.branding.tasks.recheck_domains",
+        "schedule": 24 * 3600.0,
     },
     "identity.purge_expired_auth_records": {
         "task": "eduflow.identity.tasks.purge_expired_auth_records",

@@ -32,6 +32,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -47,6 +48,7 @@ from eduflow.authz import services as authz_services
 from eduflow.authz.catalog import DataScope
 from eduflow.authz.grants import Actor, compute_grants
 from eduflow.authz.models import Role
+from eduflow.branding import selectors as branding_selectors
 from eduflow.core import db_context
 from eduflow.core.api import AccountExists, Conflict, InvalidInvitation, InvalidOtp, ServiceUnavailable
 from eduflow.core.request_context import bind_request_info
@@ -94,6 +96,7 @@ class NewInvitation:
 @dataclass(frozen=True)
 class InvitationPreview:
     school_name: str
+    branding: dict[str, Any]
     kind: str
     role_names: list[str]
     channel: str
@@ -436,6 +439,7 @@ def preview(raw: str) -> InvitationPreview:
             raise InvalidInvitation()
         return InvitationPreview(
             school_name=invitation.school.name,
+            branding=branding_selectors.public_branding(invitation.school),
             kind=invitation.kind,
             role_names=sorted(role.name for role in invitation.roles.all()),
             channel=invitation.channel,

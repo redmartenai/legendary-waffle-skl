@@ -18,6 +18,10 @@
 #   - Phase 4: a guardian invitation from creation to acceptance, the parent's child-only access, no replay
 #   - Phase 5: a timetable built and published through the API, a cross-timetable teacher clash refused,
 #     the parent's view of the child's schedule with a recorded lesson, and RLS on the new tables
+#   - Attendance: a register taken with exceptions only, an idempotent retry, the parent's month view,
+#     a correction that its requester cannot approve, and RLS on the attendance tables
+#   - White-label: colours, a logo stored in object storage and served publicly with safe headers, SVG
+#     refused, branding in the public school lookup, a pending custom domain that does not resolve
 #   - no secret from .env, and no token issued during the run, appears anywhere in the stack's logs
 set -euo pipefail
 
@@ -256,6 +260,66 @@ pass "parent sees the child's schedule and recorded lesson, and no other section
 rls=$(dc exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAqc "SET ROLE eduflow_app; SELECT (SELECT count(*) FROM timetable_timetable) + (SELECT count(*) FROM timetable_slot) + (SELECT count(*) FROM timetable_lesson) + (SELECT count(*) FROM academics_room);"')
 [[ "$(tr -d '[:space:]' <<<"$rls")" == 0 ]] || fail "RLS: app role without tenant context sees $rls Phase 5 rows"
 pass "RLS: Phase 5 tables hidden from the application role without a tenant context"
+
+echo "== Attendance: registers and corrections"
+REGISTER="{\"entries\":[{\"student_id\":\"$STUDENT_ID\",\"status\":\"absent\"}],\"client_id\":\"smoke-$RUN\",\"date\":\"2026-07-14\"}"
+code=$(post "${auth[@]}" -d "$REGISTER" "$API/api/v1/classes/$SECTION_ID/attendance")
+[[ "$code" == 200 ]] && grep -q '"absent": *1' /tmp/eduflow-body.json || fail "take register: $code $(cat /tmp/eduflow-body.json)"
+code=$(post "${auth[@]}" -d "{\"entries\":[],\"client_id\":\"smoke-$RUN\",\"date\":\"2026-07-14\"}" "$API/api/v1/classes/$SECTION_ID/attendance")
+[[ "$code" == 200 ]] && grep -q '"replayed": *true' /tmp/eduflow-body.json && grep -q '"absent": *1' /tmp/eduflow-body.json \
+  || fail "retry with the same client_id was not a replay: $code $(cat /tmp/eduflow-body.json)"
+pass "register taken with exceptions only; a retry with the same client_id changes nothing"
+code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' -H "Authorization: Bearer $PARENT_ACCESS" -H "X-School-Id: $SCHOOL_ID" "$API/api/v1/students/$STUDENT_ID/attendance?month=2026-07")
+[[ "$code" == 200 ]] && grep -Eq '"date": *"2026-07-14", *"status": *"absent"' /tmp/eduflow-body.json \
+  || fail "parent month view: $code $(cat /tmp/eduflow-body.json)"
+pass "parent sees the child's month with the absence"
+code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' "${auth[@]}" "$API/api/v1/attendance/records?student_id=$STUDENT_ID&date=2026-07-14")
+[[ "$code" == 200 ]] || fail "list records: $code"
+RECORD_ID=$(jget '["results"][0]["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d "{\"record_id\":\"$RECORD_ID\",\"new_status\":\"present\",\"reason\":\"Arrived after roll call\"}" "$API/api/v1/attendance/corrections")
+[[ "$code" == 201 ]] || fail "request correction: $code $(cat /tmp/eduflow-body.json)"
+CORRECTION_ID=$(jget '["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d '{}' "$API/api/v1/attendance/corrections/$CORRECTION_ID/approve")
+[[ "$code" == 403 ]] || fail "a requester approved their own correction: $code"
+pass "correction requested on the locked register; its requester cannot approve it (403)"
+rls=$(dc exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAqc "SET ROLE eduflow_app; SELECT (SELECT count(*) FROM attendance_session) + (SELECT count(*) FROM attendance_record) + (SELECT count(*) FROM attendance_correction);"')
+[[ "$(tr -d '[:space:]' <<<"$rls")" == 0 ]] || fail "RLS: app role without tenant context sees $rls attendance rows"
+pass "RLS: attendance tables hidden from the application role without a tenant context"
+
+echo "== White-label: branding and domains"
+code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' -X PATCH "${auth[@]}" -H 'Content-Type: application/json' -d '{"primary_color":"#FFD700"}' "$API/api/v1/branding")
+[[ "$code" == 200 ]] && grep -q '"on_primary": *"#000000"' /tmp/eduflow-body.json || fail "change colours: $code $(cat /tmp/eduflow-body.json)"
+# Relative paths: they work with every curl and Python (Windows ones do not see Git Bash's /tmp).
+PYTHON=$(command -v python3 || command -v python)
+"$PYTHON" - .smoke-logo.png .smoke-logo.svg <<'PYCODE'
+import struct, sys, zlib
+def chunk(k, d): return struct.pack(">I", len(d)) + k + d + struct.pack(">I", zlib.crc32(k + d) & 0xFFFFFFFF)
+rows = b"".join(b"\x00" + b"\xff\xd7\x00" * 32 for _ in range(32))
+png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 32, 32, 8, 2, 0, 0, 0))
+png += chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b"")
+open(sys.argv[1], "wb").write(png)
+open(sys.argv[2], "wb").write(b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>')
+PYCODE
+code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' -X PUT "${auth[@]}" -F "file=@.smoke-logo.png;type=image/png" "$API/api/v1/branding/logo")
+[[ "$code" == 200 ]] || fail "upload logo: $code $(cat /tmp/eduflow-body.json)"
+LOGO_URL=$(jget '["logo_url"]' </tmp/eduflow-body.json)
+headers=$(curl -sS -D - -o .smoke-logo-served.png "http://127.0.0.1:${API_PORT:-8000}$LOGO_URL")
+grep -qi '^content-type: image/png' <<<"$headers" && grep -qi "^content-security-policy:.*sandbox" <<<"$headers" \
+  && cmp -s .smoke-logo.png .smoke-logo-served.png || fail "logo not served intact with safe headers"
+pass "logo stored in object storage and served publicly, byte for byte, as image/png with a sandboxing CSP"
+code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' -X PUT "${auth[@]}" -F "file=@.smoke-logo.svg;type=image/png" "$API/api/v1/branding/logo")
+[[ "$code" == 400 ]] || fail "SVG logo accepted: $code"
+pass "SVG (script-capable) upload refused, whatever its declared type"
+rm -f .smoke-logo.png .smoke-logo.svg .smoke-logo-served.png
+code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' "$API/api/v1/schools/lookup?code=smoke-$RUN")
+[[ "$code" == 200 ]] && grep -q '"primary_color": *"#FFD700"' /tmp/eduflow-body.json && grep -q "$LOGO_URL" /tmp/eduflow-body.json \
+  || fail "public lookup lacks branding: $code $(cat /tmp/eduflow-body.json)"
+pass "public school lookup carries the school's branding"
+code=$(post "${auth[@]}" -d "{\"hostname\":\"portal-$RUN.example.org\"}" "$API/api/v1/domains")
+[[ "$code" == 201 ]] && grep -q '"status": *"pending"' /tmp/eduflow-body.json || fail "register domain: $code $(cat /tmp/eduflow-body.json)"
+code=$(curl -sS -o /dev/null -w '%{http_code}' "$API/api/v1/branding/resolve?host=portal-$RUN.example.org")
+[[ "$code" == 404 ]] || fail "an unverified domain resolved: $code"
+pass "custom domain registered as pending; it does not resolve until verified"
 
 echo "== Secrets never logged"
 logs=$(logs)

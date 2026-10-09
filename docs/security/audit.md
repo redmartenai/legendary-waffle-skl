@@ -59,6 +59,11 @@ References are plain UUIDs, not foreign keys: the trail outlives the rows it des
 | `timetable.timetable.created` / `.updated` / `.deleted` / `.published` / `.archived` / `.copied` | success | `copied`: `metadata.source`, `slots`, `skipped` |
 | `timetable.period.*`, `timetable.slot.*` | success | created, updated (`metadata.fields`), deleted |
 | `timetable.lesson.recorded` / `.updated` | success | `metadata.status`, `metadata.date` |
+| `attendance.register.submitted` | success | `metadata.date`, per-status counts; when retaken: `replaced`, `changed`, `removed` |
+| `attendance.correction.requested` / `.approved` / `.declined` | success | `metadata.old_status`, `metadata.new_status` on request |
+| `branding.updated`, `branding.logo.replaced` / `.removed`, `branding.favicon.replaced` / `.removed` | success | `metadata.fields`; for images the asset ID, type, size and dimensions; `by_platform` |
+| `branding.domain.added` / `.verified` / `.verification_failed` / `.disabled` / `.primary_set` / `.removed` / `.lapsed` | success | `metadata.hostname`; `verified`: `method` `dns` or `manual` (with the staff `note`); `lapsed` has no actor (the daily job) |
+| `attendance.record.corrected` | success | an approved correction applied: `old_status`, `new_status`, `correction` |
 
 Plain permission denials (`403 permission_denied`) are logged (`authz_denied`) but not audited, to keep the trail meaningful. Add an audit event where a denial is security-relevant for a specific feature.
 

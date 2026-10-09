@@ -10,6 +10,8 @@ Paths like `src/api/client.ts` refer to the `origin/eduflow-new` branch unless s
 
 ## 0. Security notice: `origin/master` contains malware
 
+> **Update 2026-10-09:** this repository (`legendary-waffle-skl`) also has the payload, on **both** `origin/master` (`217219d`) and `origin/eduflow-new` (`568f400`). The clean `eduflow-new` described below belongs to the client repository `miniature-pancake-app`. See [SECURITY_INCIDENT.md](SECURITY_INCIDENT.md), Incident 2.
+
 `origin/master` (older Expo client, commit `fda7e16`) contains a supply-chain payload. Verified directly:
 
 | File | What it does |

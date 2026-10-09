@@ -186,11 +186,20 @@ def _tenant_routes(resolver=None, prefix=""):
 def test_matrix_covers_every_tenant_endpoint_with_an_object_id():
     import re
 
+    from eduflow.attendance.tests.test_authorization import ATTENDANCE_MATRIX_PATHS
+    from eduflow.branding.tests.test_domains import BRANDING_MATRIX_PATHS
     from eduflow.invitations.tests.test_authorization import PHASE4_MATRIX_PATHS
     from eduflow.people.tests.test_isolation import PHASE3_MATRIX_PATHS
     from eduflow.timetable.tests.test_authorization import PHASE5_MATRIX_PATHS
 
-    every = MATRIX_PATHS | PHASE3_MATRIX_PATHS | PHASE4_MATRIX_PATHS | PHASE5_MATRIX_PATHS
+    every = (
+        MATRIX_PATHS
+        | PHASE3_MATRIX_PATHS
+        | PHASE4_MATRIX_PATHS
+        | PHASE5_MATRIX_PATHS
+        | ATTENDANCE_MATRIX_PATHS
+        | BRANDING_MATRIX_PATHS
+    )
     normalised = {re.sub(r"\{\w+\}", "<id>", p) for p in every}
     for route, view in _tenant_routes():
         if "<uuid:" not in route:

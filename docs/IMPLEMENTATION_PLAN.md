@@ -224,3 +224,31 @@ Implemented on branch `phase-5/academic-engine`, from Phase 4 commit `5e45a57`. 
 | Lesson | Lesson | A recorded occurrence of a slot (held or cancelled, topic) | Attendance (Phase 6) will attach to it |
 | Substitutions, holidays | — | Not built | Need the school calendar and attendance |
 | Role-specific screens | — | Backend APIs only; no frontend changes | Client work starts in Phase 6 |
+
+## 10. Phase 6 status: attendance backend (2026-10-09)
+
+The attendance domain of Phase 6 is implemented (uncommitted, on `phase-5/academic-engine`). The design, its sources and the decisions for review are in [architecture/attendance.md](architecture/attendance.md) and ADR-028.
+
+| Item | Plan | Actual | Reason |
+|---|---|---|---|
+| AttendanceSession, AttendanceRecord | ADR-008 | As specified, daily (no `period` column yet) | Period-wise is a later extension |
+| AttendanceCorrection | With approval | Request (`attendance.update`) → approve or decline (`attendance.approve`, new; never one's own) | The approver is not defined by the sources |
+| Cutoff / lock | "The school's cutoff" | End of the date, school time zone | No cutoff value is defined |
+| `/classes/{id}/roster`, `POST /classes/{id}/attendance`, `/students/{id}/attendance` | Phase 6 | Built | — |
+| `/staff/classes`, `/teacher/classes`, `/parent/children` | Phase 6 | Not built | Listings, not attendance; the next slice |
+| LeaveRequest | Phase 6 | Not built | A separate workflow |
+| `AttendanceMarked` event | Outbox (ADR-010) | Not emitted | No outbox yet |
+| Client import and MVP slice | Phase 6 | Not started | Client work |
+
+## 11. White-label status (2026-10-09)
+
+Not a phase of the original plan. It extends the Phase 2–3 tenancy and school profile, as the client contract expects (`School.branding`). It is uncommitted, on `phase-5/academic-engine`, together with the attendance work. Design: [architecture/white-label.md](architecture/white-label.md); operations: [deployment/white-label.md](deployment/white-label.md); ADR-029.
+
+| Item | Status |
+|---|---|
+| Branding (colours, logo, favicon), public and authenticated reads, platform management | Built and tested |
+| School subdomains, custom domains with DNS proof, host binding, daily recheck | Built and tested (DNS simulated in tests) |
+| Custom-domain TLS at the edge; real DNS verification in an environment | Operator set-up, not verified |
+| Client integration (web and mobile) | Not done: no trusted client tree; requirements documented |
+| Separate per-school store apps | Requirements documented only |
+| Password recovery branding | No password-recovery flow exists in the backend (CURRENT_STATE §6) |

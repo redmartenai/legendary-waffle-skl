@@ -34,6 +34,15 @@ Membership(user, school, is_active) AND school.is_active ?
 - **Platform administrators get no implicit access.** They use `/platform/*`, which is separately guarded and audited.
 - **Tokens carry no school.** Switching schools is a header change; revoking a membership takes effect on the next request.
 
+### Host binding (white-label, ADR-029)
+
+- A request made on a school's own host (its `<code>.<base>` subdomain or a verified custom domain) acts in that school.
+  - Without `X-School-Id`, the host's school is used.
+  - A header naming another school is `403 tenant_forbidden`.
+- The membership check is unchanged: a host selects, it never authorises.
+- Platform hosts behave as before, with the header required.
+- Hosts are validated by `ALLOWED_HOSTS` first.
+
 ## Adding members
 
 `POST /memberships` either creates an account or attaches an existing one. Identifiers that a school types in are not proof of anything, so:

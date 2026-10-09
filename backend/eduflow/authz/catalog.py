@@ -108,6 +108,12 @@ PERMISSIONS: Mapping[str, str] = {
     "timetable.manage": "Build, publish and archive timetables",
     "lesson.read": "View lesson records (held or cancelled, topic covered)",
     "lesson.manage": "Record lessons as held or cancelled",
+    # Attendance (ADR-008, ADR-028). "attendance.read/create/update" date from Phase 2; "update" requests a
+    # correction of a locked register, and "approve" decides it.
+    "attendance.approve": "Approve or decline attendance corrections",
+    # White-label (ADR-029).
+    "branding.manage": "Change the school's colours, logo and favicon",
+    "domain.manage": "Register, verify and remove the school's custom domains",
 }
 
 for _codename in PERMISSIONS:
