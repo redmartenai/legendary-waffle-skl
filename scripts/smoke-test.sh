@@ -16,6 +16,8 @@
 #   - Phase 3: academic year (overlap refused), grade, section, student and enrollment through the API,
 #     and RLS on the new tables
 #   - Phase 4: a guardian invitation from creation to acceptance, the parent's child-only access, no replay
+#   - Phase 5: a timetable built and published through the API, a cross-timetable teacher clash refused,
+#     the parent's view of the child's schedule with a recorded lesson, and RLS on the new tables
 #   - no secret from .env, and no token issued during the run, appears anywhere in the stack's logs
 set -euo pipefail
 
@@ -159,7 +161,7 @@ SECTION_ID=$(jget '["id"]' </tmp/eduflow-body.json)
 code=$(post "${auth[@]}" -d '{"admission_number":"SMOKE-1","first_name":"Smoke","last_name":"Student"}' "$API/api/v1/students")
 [[ "$code" == 201 ]] || fail "create student: $code"
 STUDENT_ID=$(jget '["id"]' </tmp/eduflow-body.json)
-code=$(post "${auth[@]}" -d "{\"student_id\":\"$STUDENT_ID\",\"section_id\":\"$SECTION_ID\",\"roll_number\":\"1\"}" "$API/api/v1/enrollments")
+code=$(post "${auth[@]}" -d "{\"student_id\":\"$STUDENT_ID\",\"section_id\":\"$SECTION_ID\",\"roll_number\":\"1\",\"start_date\":\"2026-06-01\"}" "$API/api/v1/enrollments")
 [[ "$code" == 201 ]] || fail "enroll: $code $(cat /tmp/eduflow-body.json)"
 grep -q "\"$GRADE_ID\"" /tmp/eduflow-body.json || fail "enrollment grade not taken from the section"
 code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' "${auth[@]}" "$API/api/v1/students?section_id=$SECTION_ID")
@@ -202,6 +204,58 @@ code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' -H "Authorization: B
 code=$(post -d "{\"token\":\"$INVITE_TOKEN\",\"challenge_id\":\"$CHALLENGE_ID\",\"code\":\"$INVITE_CODE\"}" "$API/api/v1/invitations/accept")
 [[ "$code" == 404 ]] || fail "accepted invitation replayed: $code"
 pass "guardian invitation: link delivered, preview, verify, accept as new account; child-only scope; no replay"
+
+echo "== Phase 5: academic engine (timetables, clashes, schedules, lessons)"
+code=$(post "${auth[@]}" -d "{\"full_name\":\"Smoke Teacher\",\"email\":\"smoke-teacher-$RUN@example.com\"}" "$API/api/v1/memberships")
+[[ "$code" == 201 ]] || fail "add teacher member: $code $(cat /tmp/eduflow-body.json)"
+TEACHER_MEMBERSHIP=$(jget '["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d "{\"membership_id\":\"$TEACHER_MEMBERSHIP\",\"employee_id\":\"T-$RUN\"}" "$API/api/v1/staff")
+[[ "$code" == 201 ]] || fail "create teacher profile: $code $(cat /tmp/eduflow-body.json)"
+STAFF_ID=$(jget '["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d '{"name":"Mathematics","code":"maths"}' "$API/api/v1/subjects")
+[[ "$code" == 201 ]] || fail "create subject: $code"
+SUBJECT_ID=$(jget '["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d "{\"academic_year_id\":\"$YEAR_ID\",\"grade_id\":\"$GRADE_ID\",\"name\":\"B\",\"code\":\"5b\"}" "$API/api/v1/sections")
+[[ "$code" == 201 ]] || fail "create section B: $code"
+SECTION_B=$(jget '["id"]' </tmp/eduflow-body.json)
+# Helpers set globals (not "$(...)"), so that "fail" inside them stops the script with its message.
+assign() {
+  code=$(post "${auth[@]}" -d "{\"staff_id\":\"$STAFF_ID\",\"section_id\":\"$1\",\"subject_id\":\"$SUBJECT_ID\"}" "$API/api/v1/teacher-assignments")
+  [[ "$code" == 201 ]] || fail "assign teacher: $code $(cat /tmp/eduflow-body.json)"
+  ASSIGNMENT=$(jget '["id"]' </tmp/eduflow-body.json)
+}
+assign "$SECTION_ID"; ASSIGN_A=$ASSIGNMENT
+assign "$SECTION_B"; ASSIGN_B=$ASSIGNMENT
+# timetable NAME START END SECTION ASSIGNMENT -> TT and SLOT (a timetable with one Monday slot)
+timetable() {
+  code=$(post "${auth[@]}" -d "{\"academic_year_id\":\"$YEAR_ID\",\"name\":\"$1\"}" "$API/api/v1/timetables")
+  [[ "$code" == 201 ]] || fail "create timetable $1: $code $(cat /tmp/eduflow-body.json)"
+  local tt; tt=$(jget '["id"]' </tmp/eduflow-body.json)
+  code=$(post "${auth[@]}" -d "{\"timetable_id\":\"$tt\",\"number\":1,\"name\":\"P1\",\"start_time\":\"$2\",\"end_time\":\"$3\"}" "$API/api/v1/timetable-periods")
+  [[ "$code" == 201 ]] || fail "create period: $code $(cat /tmp/eduflow-body.json)"
+  local period; period=$(jget '["id"]' </tmp/eduflow-body.json)
+  code=$(post "${auth[@]}" -d "{\"timetable_id\":\"$tt\",\"period_id\":\"$period\",\"weekday\":1,\"section_id\":\"$4\",\"assignment_id\":\"$5\"}" "$API/api/v1/timetable-slots")
+  [[ "$code" == 201 ]] || fail "create slot: $code $(cat /tmp/eduflow-body.json)"
+  TT=$tt; SLOT=$(jget '["id"]' </tmp/eduflow-body.json)
+}
+timetable Main 09:00 09:45 "$SECTION_ID" "$ASSIGN_A"; MAIN_TT=$TT; MAIN_SLOT=$SLOT
+timetable Wing 09:30 10:15 "$SECTION_B" "$ASSIGN_B"; WING_TT=$TT
+code=$(post "${auth[@]}" -d "{}" "$API/api/v1/timetables/$MAIN_TT/publish")
+[[ "$code" == 200 ]] || fail "publish timetable: $code $(cat /tmp/eduflow-body.json)"
+code=$(post "${auth[@]}" -d "{}" "$API/api/v1/timetables/$WING_TT/publish")
+[[ "$code" == 409 ]] && grep -q "Smoke Teacher" /tmp/eduflow-body.json || fail "teacher double-booked across timetables: $code"
+pass "timetable built and published; a teacher clash across timetables with different bells is refused (409)"
+code=$(post "${auth[@]}" -d "{\"slot_id\":\"$MAIN_SLOT\",\"date\":\"2026-07-13\",\"topic\":\"Fractions\"}" "$API/api/v1/lessons")
+[[ "$code" == 201 ]] || fail "record lesson: $code $(cat /tmp/eduflow-body.json)"
+code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' -H "Authorization: Bearer $PARENT_ACCESS" -H "X-School-Id: $SCHOOL_ID" "$API/api/v1/students/$STUDENT_ID/schedule?date_from=2026-07-13&date_to=2026-07-19")
+[[ "$code" == 200 ]] && grep -q "$MAIN_SLOT" /tmp/eduflow-body.json && grep -q "Fractions" /tmp/eduflow-body.json \
+  || fail "parent cannot see the child's schedule with its lesson: $code $(cat /tmp/eduflow-body.json)"
+code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $PARENT_ACCESS" -H "X-School-Id: $SCHOOL_ID" "$API/api/v1/sections/$SECTION_B/schedule")
+[[ "$code" == 404 ]] || fail "parent sees another section's schedule: $code"
+pass "parent sees the child's schedule and recorded lesson, and no other section's (404)"
+rls=$(dc exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAqc "SET ROLE eduflow_app; SELECT (SELECT count(*) FROM timetable_timetable) + (SELECT count(*) FROM timetable_slot) + (SELECT count(*) FROM timetable_lesson) + (SELECT count(*) FROM academics_room);"')
+[[ "$(tr -d '[:space:]' <<<"$rls")" == 0 ]] || fail "RLS: app role without tenant context sees $rls Phase 5 rows"
+pass "RLS: Phase 5 tables hidden from the application role without a tenant context"
 
 echo "== Secrets never logged"
 logs=$(logs)
