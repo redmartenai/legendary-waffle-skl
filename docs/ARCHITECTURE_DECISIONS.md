@@ -462,3 +462,55 @@ ADR-004 said "broadest scope wins". Scopes such as `child` and `section` are not
 - Phone sign-in works locally with no external service, and tests never send SMS.
 - Rotating `SECRET_KEY` invalidates outstanding codes, which is harmless because they live for 5 minutes.
 - Response timing for registered numbers includes the gateway call (recorded in the threat model).
+
+## ADR-022: Grades are school-level academic levels; sections belong to a grade and an academic year. *Accepted (Phase 3)*
+
+**Context**
+
+ADR-007 placed both `Grade` and `Section` under `AcademicYear`. The Phase 3 brief instead defines Class/Grade as the school's stable academic level (school, name, code, display order) and Section as belonging to a school, an academic year and a class.
+
+**Decision**
+
+- `Grade` is per school and stable across years: "Grade 5" is the same row in every year. Names and codes are the school's own.
+- `Section` is per (academic year, grade); sections are still created for each year, which keeps promotion simple.
+- The API uses `/grades` and `/sections`. `/classes` is not used, because the existing client's `/classes/{id}` means a section (ADR-007); those experience endpoints arrive with attendance (Phase 6).
+- Terms and rooms are deferred to the phases that need them (assessment and timetable).
+
+**Consequences**
+
+- Grade-level reporting across years needs no mapping table.
+- Enrollments and teacher assignments copy the year (and grade) from their section, and composite foreign keys keep them consistent.
+
+## ADR-023: Domain profiles link to the school membership, not to the user. *Accepted (Phase 3)*
+
+**Context**
+
+A user can belong to several schools (Phase 2). Staff, student and guardian records are school data. Linking them to `User` would let a profile in school A point at someone with no access to A, and every scope rule would need a membership join.
+
+**Decision**
+
+- `StaffProfile.membership` is required. `Student.membership` and `Guardian.membership` are optional (for people who do not sign in). All are one-to-one.
+- A composite FK `(membership_id, school_id) → tenancy_membership (id, school_id)` guarantees that the membership belongs to the same school.
+- Teacher = the `teacher` role (permissions) plus a `teaching` staff profile (domain record).
+- Data-scope rules match on `actor.membership` directly.
+
+**Consequences**
+
+- No second identity table and no credentials in the domain.
+- Deactivating a membership removes a person's access without touching their domain history.
+
+## ADR-024: School-owned resources share one scoped endpoint implementation. *Accepted (Phase 3)*
+
+**Decision**
+
+- `ResourceListView` and `ResourceDetailView` (`authz/api/resources.py`) implement list, create, retrieve, update and delete on top of `TenantAPIView` and `ScopedResource`.
+  - Reads come only from the read permission's scoped queryset.
+  - Writes load the target through the write permission's scope, then call a service.
+  - Lists are cursor-paginated, with typed, validated filters that can only narrow.
+- Permissions per method are derived from `read_permission` / `write_permission` (deny by default). The OpenAPI description is generated from the same declaration.
+- The domain uses `<resource>.read` and `<resource>.manage` permissions. `manage` covers create, update, archive and delete. The existing `student.*` and `staff.*` codenames are reused.
+
+**Consequences**
+
+- Twelve resources share one tested authorization path, instead of twelve hand-written ones.
+- Lifecycle operations that are not CRUD (enrollment end and transfer) are explicit actions with their own permission check.

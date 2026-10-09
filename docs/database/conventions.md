@@ -11,6 +11,7 @@ PostgreSQL 17 is the system of record (ADR-001/003). These rules apply to every 
   - Use `PROTECT` for anything referenced by history (students, staff, sections, academic years).
   - Use `CASCADE` only for true child rows (records owned by one parent).
 - **Tenant key.** Every school-owned table has a non-null `school_id` FK. Its first composite index starts with `school_id`.
+- **Same-school references.** A reference between two school-owned tables is a composite FK `(x_id, school_id) → x(id, school_id)` (the target has `UNIQUE (id, school_id)`), added with `eduflow.core.rls.same_school_fks` in the app's integrity migration. A reference that must also match a parent's year or grade includes those columns too (see enrollment).
 
 ## Integrity in the database, not only in code
 

@@ -112,5 +112,5 @@ See [threat-model.md](../security/threat-model.md) for residual risks. In short:
 - Edge rate limiting or a WAF is still required in production.
 - A production SMS adapter is still to be written; its provider is not yet chosen.
 - The httpOnly-cookie flow for the web console is designed, not built.
-- Campus and academic-year scope rules arrive with the academic modules (Phase 3).
+- Campus, section, child and self scope rules over real domain models arrived in Phase 3 ([phase-3.md](phase-3.md)).
 - Platform-level audit reading, security alerting and MFA for staff are later work.
