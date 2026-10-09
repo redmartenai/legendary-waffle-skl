@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from django.db.models import Prefetch, Q, QuerySet
 
 from eduflow.authz.catalog import DataScope
@@ -34,6 +36,11 @@ def member_list(actor: Actor) -> QuerySet[Membership]:
 
 def member_detail(actor: Actor, membership_id: object, permission: str = "user.read") -> Membership:
     return members.get(actor, permission, membership_id, base=_with_roles(Membership.objects.all()))
+
+
+def membership_with_roles(membership_id: uuid.UUID) -> Membership:
+    """One membership with its school and roles, loaded now (call inside the right database context)."""
+    return _with_roles(Membership.objects.filter(pk=membership_id)).get()
 
 
 def memberships_for_user(user: User) -> QuerySet[Membership]:

@@ -102,6 +102,11 @@ def seed_system_roles(school: School, *, only_missing_grants: bool = False) -> l
     return roles
 
 
+def ensure_can_assign(actor: Actor, role: Role) -> None:
+    """Raise ``PermissionDenied`` unless ``actor`` may give ``role`` (holds all of it school-wide)."""
+    _ensure_can_grant(actor, role_grants(role))
+
+
 def role_grants(role: Role) -> dict[str, list[str]]:
     return {r.permission_id: sorted(r.scopes) for r in RolePermission.objects.filter(role=role)}
 

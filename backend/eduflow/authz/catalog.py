@@ -97,6 +97,9 @@ PERMISSIONS: Mapping[str, str] = {
     "enrollment.manage": "Enroll, withdraw, complete and transfer students",
     "teacher_assignment.read": "View teacher assignments",
     "teacher_assignment.manage": "Assign teachers to sections and subjects",
+    # Phase 4: invitations (onboarding and account linking).
+    "invitation.read": "View invitations",
+    "invitation.manage": "Invite staff, students and guardians; resend and revoke invitations",
 }
 
 for _codename in PERMISSIONS:

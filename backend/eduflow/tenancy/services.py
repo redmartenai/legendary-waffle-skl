@@ -109,7 +109,7 @@ def create_school(*, code: str, name: str, admin: PersonSpec | None, actor: User
     )
     if admin is not None:
         user = _find_or_create_user(admin, trusted=True)
-        membership = _create_membership(school, user, actor_id=actor.pk)
+        membership = create_membership(school, user, actor_id=actor.pk)
         admin_role = next(r for r in roles if r.key == ADMIN_ROLE)
         authz_services.assign_role(None, membership, admin_role)
     return school
@@ -133,7 +133,7 @@ def update_school(school: School, *, actor_id: object, **changes: object) -> Sch
     return school
 
 
-def _create_membership(school: School, user: User, *, actor_id: object) -> Membership:
+def create_membership(school: School, user: User, *, actor_id: object) -> Membership:
     try:
         with transaction.atomic():
             membership = Membership.objects.create(school=school, user=user)
@@ -153,7 +153,7 @@ def _create_membership(school: School, user: User, *, actor_id: object) -> Membe
 @transaction.atomic
 def add_member(actor: Actor, person: PersonSpec, roles: list[Role]) -> Membership:
     user = _find_or_create_user(person, trusted=False)
-    membership = _create_membership(actor.school, user, actor_id=actor.user.pk)
+    membership = create_membership(actor.school, user, actor_id=actor.user.pk)
     for role in roles:
         authz_services.assign_role(actor, membership, role)
     return membership
