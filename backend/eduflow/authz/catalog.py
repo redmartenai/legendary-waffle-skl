@@ -100,6 +100,14 @@ PERMISSIONS: Mapping[str, str] = {
     # Phase 4: invitations (onboarding and account linking).
     "invitation.read": "View invitations",
     "invitation.manage": "Invite staff, students and guardians; resend and revoke invitations",
+    # Phase 5: academic engine. "timetable.read" (Phase 2) covers timetables, periods, slots and schedules.
+    "term.read": "View academic terms",
+    "term.manage": "Manage academic terms",
+    "room.read": "View rooms",
+    "room.manage": "Manage rooms",
+    "timetable.manage": "Build, publish and archive timetables",
+    "lesson.read": "View lesson records (held or cancelled, topic covered)",
+    "lesson.manage": "Record lessons as held or cancelled",
 }
 
 for _codename in PERMISSIONS:
@@ -113,7 +121,16 @@ _SCHOOL_READ = {"school.read": (S.SCHOOL,)}
 
 # School structure that every member may see: it holds no personal data.
 _STRUCTURE_READ = dict.fromkeys(
-    ("campus.read", "academic_year.read", "department.read", "grade.read", "subject.read"), (S.SCHOOL,)
+    (
+        "campus.read",
+        "academic_year.read",
+        "term.read",
+        "department.read",
+        "grade.read",
+        "subject.read",
+        "room.read",
+    ),
+    (S.SCHOOL,),
 )
 
 
@@ -148,6 +165,8 @@ SYSTEM_ROLES: Mapping[str, tuple[str, Mapping[str, tuple[DataScope, ...]]]] = {
             "enrollment.read": (S.SECTION,),
             "guardian.read": (S.SECTION,),
             "teacher_assignment.read": (S.SELF, S.SECTION),
+            "lesson.read": (S.SELF, S.SECTION),
+            "lesson.manage": (S.SELF,),
         },
     ),
     "parent": (
@@ -167,6 +186,7 @@ SYSTEM_ROLES: Mapping[str, tuple[str, Mapping[str, tuple[DataScope, ...]]]] = {
             "enrollment.read": (S.CHILD,),
             "guardian.read": (S.SELF,),
             "teacher_assignment.read": (S.CHILD,),
+            "lesson.read": (S.CHILD,),
         },
     ),
     "student": (
@@ -184,6 +204,7 @@ SYSTEM_ROLES: Mapping[str, tuple[str, Mapping[str, tuple[DataScope, ...]]]] = {
             "enrollment.read": (S.SELF,),
             "guardian.read": (S.SELF,),
             "teacher_assignment.read": (S.SELF,),
+            "lesson.read": (S.SELF,),
         },
     ),
     "accountant": (
