@@ -15,6 +15,7 @@
 #     and PostgreSQL RLS as the application role
 #   - Phase 3: academic year (overlap refused), grade, section, student and enrollment through the API,
 #     and RLS on the new tables
+#   - Phase 4: a guardian invitation from creation to acceptance, the parent's child-only access, no replay
 #   - no secret from .env, and no token issued during the run, appears anywhere in the stack's logs
 set -euo pipefail
 
@@ -168,9 +169,44 @@ rls=$(dc exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAq
 [[ "$(tr -d '[:space:]' <<<"$rls")" == 0 ]] || fail "RLS: app role without tenant context sees $rls Phase 3 rows"
 pass "RLS: Phase 3 tables hidden from the application role without a tenant context"
 
+echo "== Phase 4: invitations and account linking"
+# Email channel: the development console email backend prints the raw message to stdout (the SMS console
+# adapter logs through the redacting logger, which masks the link's token).
+GUARDIAN_EMAIL="smoke-parent-$RUN@example.com"
+code=$(post "${auth[@]}" -d "{\"full_name\":\"Smoke Parent\",\"email\":\"$GUARDIAN_EMAIL\"}" "$API/api/v1/guardians")
+[[ "$code" == 201 ]] || fail "create guardian: $code $(cat /tmp/eduflow-body.json)"
+GUARDIAN_ID=$(jget '["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d "{\"student_id\":\"$STUDENT_ID\",\"guardian_id\":\"$GUARDIAN_ID\",\"relationship\":\"mother\"}" "$API/api/v1/student-guardians")
+[[ "$code" == 201 ]] || fail "link guardian to student: $code"
+code=$(post "${auth[@]}" -d "{\"kind\":\"guardian\",\"channel\":\"email\",\"recipient\":\"$GUARDIAN_EMAIL\",\"full_name\":\"Smoke Parent\",\"guardian_id\":\"$GUARDIAN_ID\"}" "$API/api/v1/invitations")
+[[ "$code" == 201 ]] || fail "create invitation: $code $(cat /tmp/eduflow-body.json)"
+if grep -q '"token' /tmp/eduflow-body.json; then fail "invitation response contains a token"; fi
+# Development delivers through the console email backend, so the link and code are in the backend output.
+sleep 1
+INVITE_TOKEN=$(logs backend | grep -o 'token=[A-Za-z0-9_-]\+' | tail -1 | cut -d= -f2)
+[[ -n "$INVITE_TOKEN" ]] || fail "no invitation link was delivered"
+code=$(post -d "{\"token\":\"$INVITE_TOKEN\"}" "$API/api/v1/invitations/preview")
+[[ "$code" == 200 ]] && grep -q "Smoke School" /tmp/eduflow-body.json || fail "invitation preview: $code"
+code=$(post -d "{\"token\":\"$INVITE_TOKEN\"}" "$API/api/v1/invitations/verification")
+[[ "$code" == 200 ]] || fail "invitation verification: $code $(cat /tmp/eduflow-body.json)"
+CHALLENGE_ID=$(jget '["challenge_id"]' </tmp/eduflow-body.json)
+sleep 1
+INVITE_CODE=$(logs backend | grep -o '[0-9]\{6\} is your EduFlow invitation code' | tail -1 | cut -c1-6)
+[[ -n "$INVITE_CODE" ]] || fail "no invitation code was delivered"
+code=$(post -d "{\"token\":\"$INVITE_TOKEN\",\"challenge_id\":\"$CHALLENGE_ID\",\"code\":\"$INVITE_CODE\"}" "$API/api/v1/invitations/accept")
+[[ "$code" == 200 ]] || fail "accept invitation: $code $(cat /tmp/eduflow-body.json)"
+PARENT_ACCESS=$(jget '["session"]["access"]' </tmp/eduflow-body.json)
+code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' -H "Authorization: Bearer $PARENT_ACCESS" -H "X-School-Id: $SCHOOL_ID" "$API/api/v1/students")
+[[ "$code" == 200 ]] && grep -q "$STUDENT_ID" /tmp/eduflow-body.json || fail "parent cannot see their child: $code"
+[[ "$(jget '["results"].__len__()' </tmp/eduflow-body.json)" == 1 ]] || fail "parent sees more than their child"
+code=$(post -d "{\"token\":\"$INVITE_TOKEN\",\"challenge_id\":\"$CHALLENGE_ID\",\"code\":\"$INVITE_CODE\"}" "$API/api/v1/invitations/accept")
+[[ "$code" == 404 ]] || fail "accepted invitation replayed: $code"
+pass "guardian invitation: link delivered, preview, verify, accept as new account; child-only scope; no replay"
+
 echo "== Secrets never logged"
 logs=$(logs)
-for token in "$STAFF_ACCESS" "$ACCESS" "$REFRESH" "$ROTATED" "$TEMP_PW" "$NEW_PW" "$STAFF_PW"; do
+# (Invitation links and codes are printed to the log on purpose by the development console adapter.)
+for token in "$STAFF_ACCESS" "$ACCESS" "$REFRESH" "$ROTATED" "$TEMP_PW" "$NEW_PW" "$STAFF_PW" "$PARENT_ACCESS"; do
   if grep -qF -- "$token" <<<"$logs"; then fail "a token or password issued during the smoke test appears in logs"; fi
 done
 pass "no token or password from this run in any container log"

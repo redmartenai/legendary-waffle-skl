@@ -87,9 +87,9 @@ jobs:
       - name: Migrations apply cleanly
         run: uv run python manage.py migrate --noinput
         env: { DJANGO_SETTINGS_MODULE: config.settings.test }
-      - name: Migrations roll back and re-apply (Phase 2 and 3 apps, including RLS policies)
+      - name: Migrations roll back and re-apply (Phase 2-4 apps, including RLS policies)
         run: |
-          for app in scopeapp people academics audit authz tenancy identity core; do
+          for app in scopeapp invitations people academics audit authz tenancy identity core; do
             uv run python manage.py migrate "$app" zero --noinput -v 0
           done
           uv run python manage.py migrate --noinput -v 0
@@ -101,6 +101,7 @@ jobs:
           DJANGO_SETTINGS_MODULE: config.settings.prod
           DJANGO_SECRET_KEY: ${{ github.run_id }}-k9Qz7vR2mL5tW8yB3nH6pF1xJ4cD0sG9aE2uK7-${{ github.sha }}
           DJANGO_ALLOWED_HOSTS: api.eduflow.example
+          INVITATION_LINK_BASE: "https://app.eduflow.example/invite#token="
       - name: Tests (real PostgreSQL + Redis)
         run: uv run pytest --cov --cov-report=term-missing --cov-report=xml
       - name: OpenAPI schema is current
