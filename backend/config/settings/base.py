@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "eduflow.academics",
     "eduflow.people",
     "eduflow.invitations",
+    "eduflow.timetable",
 ]
 
 MIDDLEWARE = [
@@ -238,6 +239,11 @@ SPECTACULAR_SETTINGS = {
         "EnrollmentStatusEnum": "eduflow.people.models.EnrollmentStatus",
         "EnrollmentEndStatusEnum": ["completed", "withdrawn"],
         "AssignmentStatusEnum": "eduflow.people.models.AssignmentStatus",
+        "KindEnum": "eduflow.invitations.models.InvitationKind",  # Phase 4 name, kept stable
+        "RoomKindEnum": "eduflow.academics.models.RoomKind",
+        "TimetableStatusEnum": "eduflow.timetable.models.TimetableStatus",
+        "SlotKindEnum": "eduflow.timetable.models.SlotKind",
+        "LessonStatusEnum": "eduflow.timetable.models.LessonStatus",
         "HealthStatusEnum": ["ok", "unavailable"],
     },
 }
