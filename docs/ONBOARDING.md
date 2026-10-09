@@ -12,7 +12,7 @@ EduFlow is a multi-tenant **School Operating System**: administration, academics
 ## 2. Read in this order
 
 1. [CURRENT_STATE.md](CURRENT_STATE.md): what exists (the Expo client and its API contract) and the risks
-2. [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md): ADR-001 to ADR-025
+2. [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md): ADR-001 to ADR-027
 3. [architecture/overview.md](architecture/overview.md): system shape and module rules
 4. [api/conventions.md](api/conventions.md), [database/conventions.md](database/conventions.md), [security/model.md](security/model.md)
 5. [architecture/phase-2.md](architecture/phase-2.md), then [security/authorization.md](security/authorization.md) and [security/multitenancy.md](security/multitenancy.md) before writing any endpoint

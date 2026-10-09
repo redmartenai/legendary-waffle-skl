@@ -76,6 +76,18 @@ Phase 3 writes need the write permission with `school` scope, and linking an acc
 
 Invitation roles follow the escalation guard below: a principal cannot invite with `school_admin`, because it lacks `role.delete`. The inviter's authority is re-checked at resend and at acceptance ([invitations.md](invitations.md)). No other role holds `invitation.*`, and platform administrators have no implicit school access.
 
+### Phase 5 academic engine
+
+| Permission | Default grants | Notes |
+|---|---|---|
+| `term.read`, `room.read` | every role, school-wide | School structure, no personal data |
+| `term.manage`, `room.manage`, `timetable.manage` | school admin, principal | Writes need `school` scope |
+| `timetable.read` (Phase 2) | teacher and staff `school`, parent `child`, student `self` | Covers timetables, periods, slots and schedules |
+| `lesson.read` | teacher `self` + `section`, parent `child`, student `self` | |
+| `lesson.manage` | teacher `self`; school admin and principal `school` | **The first write with a narrower scope than the school:** a teacher records lessons of their own classes. The service re-checks that the caller is the slot's teacher with an active assignment (ADR-027). |
+
+Schedules are authorized by their subject: a teacher's, student's or section's schedule needs that record to be visible under both its own read permission and `timetable.read` (ADR-027).
+
 ### Adding a permission
 
 1. Add `"<resource>.<action>": "description"` to `PERMISSIONS`.
