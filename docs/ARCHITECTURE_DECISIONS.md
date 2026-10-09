@@ -535,3 +535,44 @@ Phase 3 let an administrator set `membership_id` on a student or guardian record
 - One more public surface (preview, verification, accept), rate limited per IP and per secret.
 - Delivery happens inside the transaction until the outbox (ADR-010) exists; a provider failure rolls the invitation back.
 - Unlinking an account from a record needs its own audited flow (deferred).
+
+## ADR-026: Timetable clashes are rejected by the database, using copies kept in sync by cascading foreign keys. *Accepted (Phase 5)*
+
+**Context**
+
+A timetable must never put a teacher, a section or a room in two places at once. Service checks alone race: two administrators can publish clashing timetables at the same moment. Schools also run several timetables at once (wings with different bell times, a new term starting mid-year), so "same period number" is not the same as "same time".
+
+**Decision**
+
+- A **timetable** is a version of the weekly plan with effective dates inside one academic year: `draft → published → archived`. Only published timetables produce schedules and lessons.
+- A **slot** (period x weekday x section) references a **teacher assignment**, which gives it its teacher and subject. A composite foreign key `(assignment, staff, section, subject)` makes a slot naming anyone else impossible.
+- A slot stores **copies** of its period's times and its timetable's dates and live flag. Composite foreign keys with `ON UPDATE CASCADE` keep them equal to their sources: wrong copies are refused, and changing a period's times or a timetable's dates rewrites every slot.
+- **Within a timetable**, unique constraints allow one slot per (period, weekday) for each section, teacher and room. Periods never overlap (exclusion constraint), so this is a time check.
+- **Across published timetables**, three exclusion constraints (`btree_gist`) refuse two live slots with the same section, teacher or room, the same weekday, overlapping times (`eduflow_timerange`) and overlapping dates. Because of the cascades, the constraints re-run when publishing, moving dates or changing bell times.
+- The services pre-check the same rules to name the clashes in the `409`. The database stays the guarantee.
+
+**Consequences**
+
+- No clash can be written by any code path: API, ORM, admin scripts or concurrent requests (tested).
+- Slots carry seven copied columns, which only the services set; responses never expose them.
+- Changing a period's times on a large published timetable updates all its slots in one statement, and the clash check covers them all.
+
+## ADR-027: Narrow-scope writes check the scope and then the relationship; schedules are authorised by their subject. *Accepted (Phase 5)*
+
+**Context**
+
+Until Phase 5, every domain write required a school-wide grant (ADR-024). Lessons are the first record a teacher must write for their own classes only. Schedules combine several resources (slots, sections, enrollments), so it must be clear whose permission decides.
+
+**Decision**
+
+- **Lessons:** `lesson.manage` with `self` scope.
+  1. The view loads the slot or lesson through the caller's `lesson.manage` scope: `404` outside it.
+  2. The service then requires the caller to be that slot's teacher with an **active** assignment, unless the grant is school-wide. A scope rule written for reading (for example the `self` rule's "a student's own section" branch) can therefore never authorise a write.
+- **Schedules:** a teacher's, student's or section's schedule is shown when that record is visible under **both** its own read permission (`staff.read`, `student.read`, `section.read`) and `timetable.read`, each through that resource's scope rules.
+  - The schedule then shows the subject's whole plan for the dates asked, including a student's earlier section after a transfer.
+  - A school-wide `timetable.read` (teachers, by default) does not reveal which section any student is in.
+
+**Consequences**
+
+- Attendance (Phase 6) will follow the same two steps for teachers' writes.
+- Schedule rules live in one place (`timetable/api/views.py`), and they reuse the existing scope rules.

@@ -2847,6 +2847,282 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`service_unavailable`'
+  /api/v1/lessons:
+    get:
+      operationId: lesson_list
+      description: Requires `lesson.read`; results are limited to the caller's data
+        scope for it.
+      summary: List lessons
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: section_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: slot_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: staff_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - cancelled
+          - held
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLessonList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: lesson_create
+      description: Requires `lesson.manage`.
+      summary: Create a lesson
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - timetable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LessonCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/lessons/{id}:
+    get:
+      operationId: lesson_retrieve
+      description: 'Requires `lesson.read`; results are limited to the caller''s data
+        scope for it. Outside the scope or school: `404`.'
+      summary: A lesson
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+    patch:
+      operationId: lesson_update
+      description: Requires `lesson.manage`.
+      summary: Update a lesson
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedLessonUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLessonUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/me:
     get:
       operationId: me_retrieve
@@ -3833,6 +4109,395 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/rooms:
+    get:
+      operationId: room_list
+      description: Requires `room.read`; results are limited to the caller's data
+        scope for it.
+      summary: List rooms
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: campus_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: kind
+        schema:
+          type: string
+          enum:
+          - classroom
+          - hall
+          - laboratory
+          - library
+          - other
+          - sports
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - archived
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRoomList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: room_create
+      description: Requires `room.manage`.
+      summary: Create a room
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoomInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/rooms/{id}:
+    get:
+      operationId: room_retrieve
+      description: 'Requires `room.read`; results are limited to the caller''s data
+        scope for it. Outside the scope or school: `404`.'
+      summary: A room
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+    patch:
+      operationId: room_update
+      description: Requires `room.manage`.
+      summary: Update a room
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoomInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRoomInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+    delete:
+      operationId: room_destroy
+      description: 'Requires `room.manage`. `409` while other records still use it:
+        archive it instead.'
+      summary: Delete a room
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/schedule/me:
+    get:
+      operationId: schedule_me_retrieve
+      description: Requires `timetable.read`. What the caller teaches (as a teacher)
+        and attends (as a student).
+      summary: My schedule
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Defaults to this week's Monday.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Defaults to date_from + 6 days; at most 42 days.
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
   /api/v1/school:
     get:
       operationId: school_retrieve
@@ -4282,6 +4947,79 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/sections/{id}/schedule:
+    get:
+      operationId: sections_schedule_retrieve
+      description: Requires `timetable.read` and `section.read`, both covering the
+        section.
+      summary: A section's schedule
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Defaults to this week's Monday.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Defaults to date_from + 6 days; at most 42 days.
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
   /api/v1/staff:
     get:
       operationId: staff_list
@@ -4552,6 +5290,79 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/staff/{id}/schedule:
+    get:
+      operationId: staff_schedule_retrieve
+      description: 'Requires `timetable.read` and `staff.read`, both covering the
+        staff record (a teacher: their own).'
+      summary: A teacher's schedule
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Defaults to this week's Monday.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Defaults to date_from + 6 days; at most 42 days.
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
   /api/v1/student-guardians:
     get:
       operationId: student_guardian_list
@@ -5132,6 +5943,80 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/students/{id}/schedule:
+    get:
+      operationId: students_schedule_retrieve
+      description: 'Requires `timetable.read` and `student.read`, both covering the
+        student: a parent sees their children''s, a student their own, a teacher those
+        of the sections they teach.'
+      summary: A student's schedule
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Defaults to this week's Monday.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Defaults to date_from + 6 days; at most 42 days.
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
   /api/v1/subjects:
     get:
       operationId: subject_list
@@ -5756,6 +6641,1473 @@ paths:
       responses:
         '204':
           description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/terms:
+    get:
+      operationId: term_list
+      description: Requires `term.read`; results are limited to the caller's data
+        scope for it.
+      summary: List terms
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: academic_year_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTermList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: term_create
+      description: Requires `term.manage`.
+      summary: Create a term
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TermCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TermCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/terms/{id}:
+    get:
+      operationId: term_retrieve
+      description: 'Requires `term.read`; results are limited to the caller''s data
+        scope for it. Outside the scope or school: `404`.'
+      summary: A term
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+    patch:
+      operationId: term_update
+      description: Requires `term.manage`.
+      summary: Update a term
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTermUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTermUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+    delete:
+      operationId: term_destroy
+      description: 'Requires `term.manage`. `409` while other records still use it:
+        archive it instead.'
+      summary: Delete a term
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/timetable-periods:
+    get:
+      operationId: timetable_period_list
+      description: Requires `timetable.read`; results are limited to the caller's
+        data scope for it.
+      summary: List timetable periods
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: timetable_id
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPeriodList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: timetable_period_create
+      description: Requires `timetable.manage`.
+      summary: Create a timetable period
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - timetable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeriodCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PeriodCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/timetable-periods/{id}:
+    get:
+      operationId: timetable_period_retrieve
+      description: 'Requires `timetable.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A timetable period
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+    patch:
+      operationId: timetable_period_update
+      description: Requires `timetable.manage`.
+      summary: Update a timetable period
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPeriodUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPeriodUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+    delete:
+      operationId: timetable_period_destroy
+      description: 'Requires `timetable.manage`. `409` while other records still use
+        it: archive it instead.'
+      summary: Delete a timetable period
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/timetable-slots:
+    get:
+      operationId: timetable_slot_list
+      description: Requires `timetable.read`; results are limited to the caller's
+        data scope for it.
+      summary: List timetable slots
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: kind
+        schema:
+          type: string
+          enum:
+          - activity
+          - lesson
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: room_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: section_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: staff_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: timetable_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: weekday
+        schema:
+          type: string
+          enum:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSlotList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: timetable_slot_create
+      description: Requires `timetable.manage`.
+      summary: Create a timetable slot
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - timetable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SlotCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SlotCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/timetable-slots/{id}:
+    get:
+      operationId: timetable_slot_retrieve
+      description: 'Requires `timetable.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A timetable slot
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+    patch:
+      operationId: timetable_slot_update
+      description: Requires `timetable.manage`.
+      summary: Update a timetable slot
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSlotUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSlotUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+    delete:
+      operationId: timetable_slot_destroy
+      description: 'Requires `timetable.manage`. `409` while other records still use
+        it: archive it instead.'
+      summary: Delete a timetable slot
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/timetables:
+    get:
+      operationId: timetable_list
+      description: Requires `timetable.read`; results are limited to the caller's
+        data scope for it.
+      summary: List timetables
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: academic_year_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - archived
+          - draft
+          - published
+      - in: query
+        name: term_id
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTimetableList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: timetable_create
+      description: Requires `timetable.manage`.
+      summary: Create a timetable
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - timetable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimetableCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TimetableCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimetableOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/timetables/{id}:
+    get:
+      operationId: timetable_retrieve
+      description: 'Requires `timetable.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A timetable
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimetableOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+    patch:
+      operationId: timetable_update
+      description: Requires `timetable.manage`.
+      summary: Update a timetable
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTimetableUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTimetableUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimetableOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+    delete:
+      operationId: timetable_destroy
+      description: 'Requires `timetable.manage`. `409` while other records still use
+        it: archive it instead.'
+      summary: Delete a timetable
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/timetables/{id}/archive:
+    post:
+      operationId: timetables_archive_create
+      description: Requires `timetable.manage`. It leaves schedules; its lessons stay
+        as history.
+      summary: Archive a published timetable
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimetableOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/timetables/{id}/copy:
+    post:
+      operationId: timetables_copy_create
+      description: Requires `timetable.manage`. Same academic year; periods and slots
+        are copied, except lesson slots whose teacher assignment has ended.
+      summary: Copy a timetable into a new draft
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimetableCopyInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TimetableCopyInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimetableOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/timetables/{id}/publish:
+    post:
+      operationId: timetables_publish_create
+      description: Requires `timetable.manage`. The timetable's slots then appear
+        in schedules and take part in clash checks against every other published timetable
+        (`409` naming the clashes).
+      summary: Publish a draft timetable
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - timetable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimetableOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
         '401':
           content:
             application/json:
@@ -6765,6 +9117,101 @@ components:
         * `staff` - Staff member or teacher
         * `student` - Student
         * `guardian` - Parent or guardian
+    LessonCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        slot_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/LessonStatusEnum'
+        topic:
+          type: string
+          maxLength: 300
+        cancellation_reason:
+          type: string
+          maxLength: 200
+      required:
+      - date
+      - slot_id
+    LessonOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        slot_id:
+          type: string
+          format: uuid
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        section:
+          $ref: '#/components/schemas/Ref'
+        subject:
+          $ref: '#/components/schemas/Ref'
+        teacher:
+          $ref: '#/components/schemas/TeacherRef'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LessonStatusEnum'
+          readOnly: true
+        topic:
+          type: string
+          readOnly: true
+        cancellation_reason:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - cancellation_reason
+      - created_at
+      - date
+      - id
+      - section
+      - slot_id
+      - status
+      - subject
+      - teacher
+      - topic
+      - updated_at
+    LessonRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/LessonStatusEnum'
+        topic:
+          type: string
+      required:
+      - id
+      - status
+      - topic
+    LessonStatusEnum:
+      enum:
+      - held
+      - cancelled
+      type: string
+      description: |-
+        * `held` - Held
+        * `cancelled` - Cancelled
     LogoutInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -6935,6 +9382,8 @@ components:
       required:
       - permissions
       - school_id
+    NullEnum:
+      type: 'null'
     OtpRequestInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -7139,6 +9588,69 @@ components:
       - next
       - previous
       - results
+    PaginatedLessonList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LessonOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedPeriodList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PeriodOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedRoomList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomOut'
+      required:
+      - next
+      - previous
+      - results
     PaginatedSectionList:
       type: object
       properties:
@@ -7156,6 +9668,27 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SectionOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedSlotList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlotOut'
       required:
       - next
       - previous
@@ -7261,6 +9794,48 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TeacherAssignmentOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedTermList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TermOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedTimetableList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimetableOut'
       required:
       - next
       - previous
@@ -7431,12 +10006,46 @@ components:
         occupation:
           type: string
           maxLength: 100
+    PatchedLessonUpdateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        status:
+          $ref: '#/components/schemas/LessonStatusEnum'
+        topic:
+          type: string
+          maxLength: 300
+        cancellation_reason:
+          type: string
+          maxLength: 200
     PatchedMembershipUpdateInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
         into a write (mass assignment).
       properties:
         is_active:
+          type: boolean
+    PatchedPeriodUpdateInRequest:
+      type: object
+      description: A period's timetable is fixed. New times also move the period's
+        slots (and are clash-checked).
+      properties:
+        number:
+          type: integer
+          maximum: 99
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        start_time:
+          type: string
+          format: time
+        end_time:
+          type: string
+          format: time
+        is_break:
           type: boolean
     PatchedRoleUpdateInRequest:
       type: object
@@ -7476,6 +10085,35 @@ components:
                 * `self` - Own record
                 * `own` - Records they created
           description: Replaces the role's whole permission set.
+    PatchedRoomInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        kind:
+          $ref: '#/components/schemas/RoomKindEnum'
+        campus_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        capacity:
+          type:
+          - integer
+          - 'null'
+          maximum: 32767
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
     PatchedSchoolPatchInRequest:
       type: object
       description: Platform staff may edit the full profile and activate or deactivate
@@ -7620,6 +10258,31 @@ components:
           minimum: 1
         status:
           $ref: '#/components/schemas/RecordStatusEnum'
+    PatchedSlotUpdateInRequest:
+      type: object
+      description: A slot's timetable, section and kind are fixed; delete it and create
+        another instead.
+      properties:
+        period_id:
+          type: string
+          format: uuid
+        weekday:
+          type: integer
+          maximum: 7
+          minimum: 1
+        assignment_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        title:
+          type: string
+          maxLength: 100
+        room_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
     PatchedStaffUpdateInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -7746,6 +10409,46 @@ components:
           type: boolean
         status:
           $ref: '#/components/schemas/AssignmentStatusEnum'
+    PatchedTermUpdateInRequest:
+      type: object
+      description: A term's academic year is fixed.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+    PatchedTimetableUpdateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        term_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Drafts only.
+        effective_from:
+          type: string
+          format: date
+        effective_to:
+          type: string
+          format: date
     PatchedUserPatchInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -7753,6 +10456,105 @@ components:
       properties:
         is_active:
           type: boolean
+    PeriodCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        timetable_id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+          maximum: 99
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        start_time:
+          type: string
+          format: time
+        end_time:
+          type: string
+          format: time
+        is_break:
+          type: boolean
+      required:
+      - end_time
+      - name
+      - number
+      - start_time
+      - timetable_id
+    PeriodOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        timetable_id:
+          type: string
+          format: uuid
+          readOnly: true
+        number:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+          description: For example "Period 1" or "Lunch".
+        start_time:
+          type: string
+          format: time
+          readOnly: true
+        end_time:
+          type: string
+          format: time
+          readOnly: true
+        is_break:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - end_time
+      - id
+      - is_break
+      - name
+      - number
+      - start_time
+      - timetable_id
+      - updated_at
+    PeriodRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+        name:
+          type: string
+        start_time:
+          type: string
+          format: time
+        end_time:
+          type: string
+          format: time
+      required:
+      - end_time
+      - id
+      - name
+      - number
+      - start_time
     PermissionOut:
       type: object
       properties:
@@ -7905,6 +10707,14 @@ components:
                 * `own` - Records they created
       required:
       - name
+    RoleEnum:
+      enum:
+      - teacher
+      - student
+      type: string
+      description: |-
+        * `teacher` - teacher
+        * `student` - student
     RoleOut:
       type: object
       properties:
@@ -7967,6 +10777,179 @@ components:
       - id
       - key
       - name
+    RoomInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        kind:
+          $ref: '#/components/schemas/RoomKindEnum'
+        campus_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        capacity:
+          type:
+          - integer
+          - 'null'
+          maximum: 32767
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
+      required:
+      - code
+      - name
+    RoomKindEnum:
+      enum:
+      - classroom
+      - laboratory
+      - library
+      - hall
+      - sports
+      - other
+      type: string
+      description: |-
+        * `classroom` - Classroom
+        * `laboratory` - Laboratory
+        * `library` - Library
+        * `hall` - Hall
+        * `sports` - Sports
+        * `other` - Other
+    RoomOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/RoomKindEnum'
+          readOnly: true
+        campus:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        capacity:
+          type:
+          - integer
+          - 'null'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RecordStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - campus
+      - capacity
+      - code
+      - created_at
+      - id
+      - kind
+      - name
+      - status
+      - updated_at
+    ScheduleEntryOut:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        weekday:
+          type: integer
+        role:
+          description: |-
+            In /schedule/me: whose entry this is.
+
+            * `teacher` - teacher
+            * `student` - student
+          oneOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        slot_id:
+          type: string
+          format: uuid
+        kind:
+          $ref: '#/components/schemas/SlotKindEnum'
+        title:
+          type: string
+        period:
+          $ref: '#/components/schemas/PeriodRef'
+        section:
+          $ref: '#/components/schemas/Ref'
+        subject:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        teacher:
+          oneOf:
+          - $ref: '#/components/schemas/TeacherRef'
+          - type: 'null'
+          description: Null while the class has no active teacher assignment.
+        room:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        lesson:
+          oneOf:
+          - $ref: '#/components/schemas/LessonRef'
+          - type: 'null'
+          description: Present once the lesson has been recorded.
+      required:
+      - date
+      - kind
+      - lesson
+      - period
+      - role
+      - room
+      - section
+      - slot_id
+      - subject
+      - teacher
+      - title
+      - weekday
+    ScheduleOut:
+      type: object
+      properties:
+        date_from:
+          type: string
+          format: date
+        date_to:
+          type: string
+          format: date
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleEntryOut'
+      required:
+      - date_from
+      - date_to
+      - entries
     SchoolCreateInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -8237,6 +11220,121 @@ components:
       - last_used_at
       - remember
       - user_agent
+    SlotCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        weekday:
+          type: integer
+          maximum: 7
+          minimum: 1
+          description: 'ISO weekday: 1 = Monday ... 7 = Sunday.'
+        timetable_id:
+          type: string
+          format: uuid
+        period_id:
+          type: string
+          format: uuid
+        section_id:
+          type: string
+          format: uuid
+        kind:
+          $ref: '#/components/schemas/SlotKindEnum'
+        assignment_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: 'Lessons: an active subject assignment of this section. Gives
+            the teacher and subject.'
+        title:
+          type: string
+          maxLength: 100
+        room_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      required:
+      - period_id
+      - section_id
+      - timetable_id
+      - weekday
+    SlotKindEnum:
+      enum:
+      - lesson
+      - activity
+      type: string
+      description: |-
+        * `lesson` - Lesson
+        * `activity` - Activity
+    SlotOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        timetable_id:
+          type: string
+          format: uuid
+          readOnly: true
+        period:
+          $ref: '#/components/schemas/PeriodRef'
+        weekday:
+          type: integer
+          readOnly: true
+          description: 'ISO weekday: 1 = Monday ... 7 = Sunday.'
+        section:
+          $ref: '#/components/schemas/Ref'
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/SlotKindEnum'
+          readOnly: true
+        assignment_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          readOnly: true
+        subject:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        teacher:
+          oneOf:
+          - $ref: '#/components/schemas/TeacherRef'
+          - type: 'null'
+        title:
+          type: string
+          readOnly: true
+        room:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assignment_id
+      - created_at
+      - id
+      - kind
+      - period
+      - room
+      - section
+      - subject
+      - teacher
+      - timetable_id
+      - title
+      - updated_at
+      - weekday
     StaffCreateInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -8691,6 +11789,207 @@ components:
       - status
       - subject
       - updated_at
+    TeacherRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+      required:
+      - full_name
+      - id
+    TermCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        academic_year_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+      required:
+      - academic_year_id
+      - code
+      - end_date
+      - name
+      - start_date
+    TermOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        academic_year:
+          $ref: '#/components/schemas/Ref'
+        start_date:
+          type: string
+          format: date
+          readOnly: true
+        end_date:
+          type: string
+          format: date
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - academic_year
+      - code
+      - created_at
+      - end_date
+      - id
+      - name
+      - start_date
+      - updated_at
+    TimetableCopyInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        term_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        effective_from:
+          type: string
+          format: date
+        effective_to:
+          type: string
+          format: date
+      required:
+      - name
+    TimetableCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        academic_year_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        term_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        effective_from:
+          type: string
+          format: date
+          description: Defaults to the start of the term, or of the academic year.
+        effective_to:
+          type: string
+          format: date
+          description: Defaults to the end of the term, or of the academic year.
+      required:
+      - academic_year_id
+      - name
+    TimetableOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        academic_year:
+          $ref: '#/components/schemas/Ref'
+        term:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        effective_from:
+          type: string
+          format: date
+          readOnly: true
+        effective_to:
+          type: string
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/TimetableStatusEnum'
+          readOnly: true
+        published_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - academic_year
+      - archived_at
+      - created_at
+      - effective_from
+      - effective_to
+      - id
+      - name
+      - published_at
+      - status
+      - term
+      - updated_at
+    TimetableStatusEnum:
+      enum:
+      - draft
+      - published
+      - archived
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `published` - Published
+        * `archived` - Archived
     TokenInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes

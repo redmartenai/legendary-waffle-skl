@@ -55,6 +55,10 @@ References are plain UUIDs, not foreign keys: the trail outlives the rows it des
 | `invitations.invitation.accepted` | success | `metadata.kind`, `metadata.membership`, `metadata.signed_in_by_acceptance` |
 | `identity.account.claimed` | success | an unreachable account was claimed by the verified invitation recipient |
 | `people.student.account_linked` / `people.guardian.account_linked` | success | the record was linked to a membership by an accepted invitation |
+| `academics.term.*`, `academics.room.*` | success | created, updated, deleted |
+| `timetable.timetable.created` / `.updated` / `.deleted` / `.published` / `.archived` / `.copied` | success | `copied`: `metadata.source`, `slots`, `skipped` |
+| `timetable.period.*`, `timetable.slot.*` | success | created, updated (`metadata.fields`), deleted |
+| `timetable.lesson.recorded` / `.updated` | success | `metadata.status`, `metadata.date` |
 
 Plain permission denials (`403 permission_denied`) are logged (`authz_denied`) but not audited, to keep the trail meaningful. Add an audit event where a denial is security-relevant for a specific feature.
 
