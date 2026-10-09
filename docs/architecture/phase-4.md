@@ -76,7 +76,7 @@ These are **backend** guarantees, exercised by tests over the real endpoints. No
 
 ## Tests
 
-Phase 4 adds 95 tests, in `invitations/tests`:
+Phase 4 adds 88 tests in `invitations/tests` (543 in the suite, 96.52% coverage):
 
 - every state transition
 - new, claimed and existing-account acceptance
