@@ -188,3 +188,15 @@ Implemented on branch `phase-2/security-identity`. The architecture is in [archi
 | Data scope | "broadest wins" (ADR-004) | Union of scopes (ADR-020) | Scopes are not totally ordered |
 | RLS | "evaluate" (ADR-003) | Adopted (ADR-018) | Works with Celery and tooling |
 | Least-privilege database role | Phase 2 | `eduflow_app` (NOLOGIN, RLS-bound); requests switch to it | A separate production login is recommended in [rls.md](security/rls.md) |
+
+## 7. Phase 3 status (2026-10-08)
+
+Implemented on branch `phase-3/core-school-domain`, which combines the plan's Phase 3 (school structure) and Phase 4 (people) as the Phase 3 brief requires. The design is in [architecture/phase-3.md](architecture/phase-3.md) and ADR-022 to ADR-024. These are the deviations from §1:
+
+| Item | Plan | Actual | Reason |
+|---|---|---|---|
+| Grade | Per academic year (ADR-007) | Per school; sections per (year, grade) | Phase 3 brief (ADR-022) |
+| Term, Room | Phase 3 | Deferred | Needed first by assessment and timetable |
+| `/platform/schools` POST with year, grades, sections | Phase 3 | School + roles + first admin only (Phase 2); the structure is created through the canonical APIs | Keeps onboarding small. A bootstrap command can follow the MVP slice. |
+| Invites, temporary passwords for staff and parents | Phase 4 | Not built. School-created accounts sign in by phone OTP (Phase 2 security review). | Needs email delivery. |
+| Promotion to the next year | — | Not built | Explicitly out of scope |

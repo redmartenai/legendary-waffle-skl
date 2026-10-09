@@ -58,11 +58,12 @@ The rules, in order of preference:
 2. Otherwise, start every query from `Model.objects.for_school(actor.school)` (`TenantQuerySet`). Every school-owned model uses this manager.
 3. **Never** `Model.objects.get(pk=…)` on school-owned data from a request. A forgotten filter is still caught by RLS, but it is a bug.
 4. School-owned models derive from `tenancy.models.TenantModel` (non-null, indexed `school` FK).
-5. A child row whose parent is school-owned also stores `school_id`, and composite foreign keys keep the two consistent (for example `authz_membership_role(membership_id, school_id) → tenancy_membership(id, school_id)`).
+5. A child row whose parent is school-owned also stores `school_id`, and composite foreign keys keep the two consistent (Phase 3 uses this for every cross-table reference, e.g. an enrollment's section, year and grade; see [phase-3.md](../architecture/phase-3.md#tenant-boundaries-and-integrity)) (for example `authz_membership_role(membership_id, school_id) → tenancy_membership(id, school_id)`).
 
 ## Tests that keep it true
 
 - `tenancy/tests/test_isolation.py` — the **isolation matrix**. A school admin of school A sends every tenant endpoint school B's object IDs, for read, update, delete and role assignment, and must get exactly the same response as for a random non-existent ID.
+- Phase 3 adds `people/tests/test_isolation.py` (every new detail, update, delete and lifecycle endpoint), and the coverage check includes it.
 - **The matrix is enforced**: `test_matrix_covers_every_tenant_endpoint_with_an_object_id` walks the URL configuration and fails if a tenant endpoint with an ID in its path is not in the matrix. A new endpoint cannot ship without isolation coverage.
 - `test_every_tenant_handler_declares_a_permission` fails if any handler lacks a permission.
 - `tenancy/tests/test_rls.py` proves the database refuses cross-tenant reads and writes, even for unfiltered queries.

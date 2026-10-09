@@ -12,7 +12,7 @@ EduFlow is a multi-tenant **School Operating System**: administration, academics
 ## 2. Read in this order
 
 1. [CURRENT_STATE.md](CURRENT_STATE.md): what exists (the Expo client and its API contract) and the risks
-2. [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md): ADR-001 to ADR-021
+2. [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md): ADR-001 to ADR-024
 3. [architecture/overview.md](architecture/overview.md): system shape and module rules
 4. [api/conventions.md](api/conventions.md), [database/conventions.md](database/conventions.md), [security/model.md](security/model.md)
 5. [architecture/phase-2.md](architecture/phase-2.md), then [security/authorization.md](security/authorization.md) and [security/multitenancy.md](security/multitenancy.md) before writing any endpoint
@@ -53,7 +53,8 @@ Then open http://127.0.0.1:8000/api/v1/docs.
 | `backend/config/` | Settings, URLs, Celery app |
 | `backend/eduflow/core/` | Infrastructure: request IDs, logging, errors, health |
 | `backend/eduflow/identity/`, `tenancy/`, `authz/`, `audit/` | Security foundation (Phase 2) |
-| `backend/eduflow/<module>/` | Domain modules (from Phase 3) |
+| `backend/eduflow/academics/`, `people/` | Core school domain (Phase 3): [architecture/phase-3.md](architecture/phase-3.md), [domain/](domain/README.md) |
+| `backend/eduflow/<module>/` | Later domain modules (attendance, learning, …) |
 | `infra/docker/compose.yaml` | Local stack |
 | `scripts/smoke-test.sh` | End-to-end stack verification |
 | `.github/workflows/backend.yml` | CI |
