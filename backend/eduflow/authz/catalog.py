@@ -77,6 +77,26 @@ PERMISSIONS: Mapping[str, str] = {
     "transport.manage": "Manage transport",
     "hostel.read": "View hostel allocations",
     "hostel.manage": "Manage hostels",
+    # Phase 3: core school domain. "manage" covers create, update, archive and delete.
+    "campus.read": "View campuses",
+    "campus.manage": "Manage campuses",
+    "academic_year.read": "View academic years",
+    "academic_year.manage": "Manage academic years and their lifecycle",
+    "department.read": "View departments",
+    "department.manage": "Manage departments",
+    "grade.read": "View grades (classes)",
+    "grade.manage": "Manage grades (classes)",
+    "section.read": "View sections",
+    "section.manage": "Manage sections",
+    "subject.read": "View subjects",
+    "subject.manage": "Manage subjects",
+    "staff.create": "Create staff and teacher profiles",
+    "guardian.read": "View guardians and their links to students",
+    "guardian.manage": "Manage guardians and their links to students",
+    "enrollment.read": "View enrollments",
+    "enrollment.manage": "Enroll, withdraw, complete and transfer students",
+    "teacher_assignment.read": "View teacher assignments",
+    "teacher_assignment.manage": "Assign teachers to sections and subjects",
 }
 
 for _codename in PERMISSIONS:
@@ -86,6 +106,12 @@ for _codename in PERMISSIONS:
 S = DataScope
 _ALL_SCHOOL = dict.fromkeys(PERMISSIONS, (S.SCHOOL,))
 _SCHOOL_READ = {"school.read": (S.SCHOOL,)}
+
+
+# School structure that every member may see: it holds no personal data.
+_STRUCTURE_READ = dict.fromkeys(
+    ("campus.read", "academic_year.read", "department.read", "grade.read", "subject.read"), (S.SCHOOL,)
+)
 
 
 def _school(*codenames: str) -> dict[str, tuple[DataScope, ...]]:
@@ -113,6 +139,12 @@ SYSTEM_ROLES: Mapping[str, tuple[str, Mapping[str, tuple[DataScope, ...]]]] = {
             "assessment.update": (S.SECTION,),
             "timetable.read": (S.SCHOOL,),
             "report.read": (S.SECTION,),
+            **_STRUCTURE_READ,
+            "section.read": (S.SECTION,),
+            "staff.read": (S.SELF,),
+            "enrollment.read": (S.SECTION,),
+            "guardian.read": (S.SECTION,),
+            "teacher_assignment.read": (S.SELF, S.SECTION),
         },
     ),
     "parent": (
@@ -127,6 +159,11 @@ SYSTEM_ROLES: Mapping[str, tuple[str, Mapping[str, tuple[DataScope, ...]]]] = {
             "report.read": (S.CHILD,),
             "fee.read": (S.CHILD,),
             "transport.read": (S.CHILD,),
+            **_STRUCTURE_READ,
+            "section.read": (S.CHILD,),
+            "enrollment.read": (S.CHILD,),
+            "guardian.read": (S.SELF,),
+            "teacher_assignment.read": (S.CHILD,),
         },
     ),
     "student": (
@@ -139,6 +176,11 @@ SYSTEM_ROLES: Mapping[str, tuple[str, Mapping[str, tuple[DataScope, ...]]]] = {
             "assessment.read": (S.SELF,),
             "timetable.read": (S.SELF,),
             "report.read": (S.SELF,),
+            **_STRUCTURE_READ,
+            "section.read": (S.SELF,),
+            "enrollment.read": (S.SELF,),
+            "guardian.read": (S.SELF,),
+            "teacher_assignment.read": (S.SELF,),
         },
     ),
     "accountant": (
@@ -147,29 +189,59 @@ SYSTEM_ROLES: Mapping[str, tuple[str, Mapping[str, tuple[DataScope, ...]]]] = {
             **_SCHOOL_READ,
             "user.read": (S.SELF,),
             **_school("fee.read", "fee.update", "student.read", "report.read"),
+            **_STRUCTURE_READ,
+            **_school("section.read", "enrollment.read", "guardian.read"),
         },
     ),
     "hr_manager": (
         "HR Manager",
-        {**_SCHOOL_READ, **_school("user.read", "user.update", "staff.read", "staff.update", "report.read")},
+        {
+            **_SCHOOL_READ,
+            **_STRUCTURE_READ,
+            **_school(
+                "user.read", "user.update", "staff.read", "staff.update", "staff.create", "report.read"
+            ),
+        },
     ),
     "librarian": (
         "Librarian",
-        {**_SCHOOL_READ, "user.read": (S.SELF,), **_school("library.read", "library.manage", "student.read")},
+        {
+            **_SCHOOL_READ,
+            "user.read": (S.SELF,),
+            **_school("library.read", "library.manage", "student.read", "section.read", "enrollment.read"),
+            **_STRUCTURE_READ,
+        },
     ),
     "transport_manager": (
         "Transport Manager",
         {
             **_SCHOOL_READ,
             "user.read": (S.SELF,),
-            **_school("transport.read", "transport.manage", "student.read"),
+            **_school(
+                "transport.read", "transport.manage", "student.read", "section.read", "enrollment.read"
+            ),
+            **_STRUCTURE_READ,
         },
     ),
     "hostel_manager": (
         "Hostel Manager",
-        {**_SCHOOL_READ, "user.read": (S.SELF,), **_school("hostel.read", "hostel.manage", "student.read")},
+        {
+            **_SCHOOL_READ,
+            "user.read": (S.SELF,),
+            **_school("hostel.read", "hostel.manage", "student.read", "section.read", "enrollment.read"),
+            **_STRUCTURE_READ,
+        },
     ),
-    "staff": ("Staff", {**_SCHOOL_READ, "user.read": (S.SELF,), "timetable.read": (S.SCHOOL,)}),
+    "staff": (
+        "Staff",
+        {
+            **_SCHOOL_READ,
+            **_STRUCTURE_READ,
+            "user.read": (S.SELF,),
+            "timetable.read": (S.SCHOOL,),
+            "staff.read": (S.SELF,),
+        },
+    ),
     "driver": (
         "Driver",
         {
@@ -177,6 +249,7 @@ SYSTEM_ROLES: Mapping[str, tuple[str, Mapping[str, tuple[DataScope, ...]]]] = {
             "user.read": (S.SELF,),
             "transport.read": (S.ASSIGNED,),
             "student.read": (S.ASSIGNED,),
+            **_STRUCTURE_READ,
         },
     ),
 }
