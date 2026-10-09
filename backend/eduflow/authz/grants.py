@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING
 
 from django.core.cache import cache
 
+from eduflow.core.logging import get_logger
+
 from .catalog import DataScope
 from .models import RolePermission
 
@@ -25,6 +27,8 @@ if TYPE_CHECKING:
 Grants = Mapping[str, frozenset[DataScope]]
 
 _CACHE_SECONDS = 300
+
+log = get_logger(__name__)
 
 
 def _cache_key(membership: Membership, school: School) -> str:
@@ -44,12 +48,20 @@ def compute_grants(membership: Membership) -> dict[str, frozenset[DataScope]]:
 
 
 def grants_for(membership: Membership, school: School) -> dict[str, frozenset[DataScope]]:
+    """Cached effective grants. The cache is only an optimisation: if Redis fails, the database answers."""
     key = _cache_key(membership, school)
-    cached = cache.get(key)
+    try:
+        cached = cache.get(key)
+    except Exception:  # any cache error: fall back to the authoritative database
+        log.warning("grants_cache_unavailable")
+        return compute_grants(membership)
     if cached is not None:
         return {k: frozenset(DataScope(s) for s in v) for k, v in cached.items()}
     grants = compute_grants(membership)
-    cache.set(key, {k: sorted(v) for k, v in grants.items()}, _CACHE_SECONDS)
+    try:
+        cache.set(key, {k: sorted(v) for k, v in grants.items()}, _CACHE_SECONDS)
+    except Exception:
+        log.warning("grants_cache_unavailable")
     return grants
 
 
