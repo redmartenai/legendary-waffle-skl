@@ -33,7 +33,7 @@ References are plain UUIDs, not foreign keys: the trail outlives the rows it des
 
 | Action | Outcome(s) | Notes |
 |---|---|---|
-| `auth.login` | success, failure | `metadata.method` = `password` / `otp` |
+| `auth.login` | success, failure | `metadata.method` = `password` / `otp` / `invitation` |
 | `auth.logout`, `auth.logout_all`, `auth.session.revoked` | success | |
 | `auth.refresh` | success, failure | failure `metadata.reason`: `unknown`, `revoked`, `expired`, `inactive` |
 | `auth.refresh.reuse_detected` | failure | the whole session is revoked |
@@ -49,6 +49,12 @@ References are plain UUIDs, not foreign keys: the trail outlives the rows it des
 | `tenancy.access_denied` | denied | `X-School-Id` for a school the caller cannot access; target = attempted school |
 | `authz.role.created` / `.updated` / `.deleted` | success | update records added, removed and re-scoped permissions |
 | `authz.role.assigned` / `.unassigned` | success | target = membership, `metadata.role` |
+| `invitations.invitation.created` / `.resent` / `.revoked` / `.expired` | success | kind, channel, roles; never the secret, the address or a code |
+| `invitations.verification.requested` | success | a code was sent for an invitation; `metadata.channel` |
+| `invitations.invitation.verification_failed` | failure | wrong, expired or used code at acceptance |
+| `invitations.invitation.accepted` | success | `metadata.kind`, `metadata.membership`, `metadata.signed_in_by_acceptance` |
+| `identity.account.claimed` | success | an unreachable account was claimed by the verified invitation recipient |
+| `people.student.account_linked` / `people.guardian.account_linked` | success | the record was linked to a membership by an accepted invitation |
 
 Plain permission denials (`403 permission_denied`) are logged (`authz_denied`) but not audited, to keep the trail meaningful. Add an audit event where a denial is security-relevant for a specific feature.
 

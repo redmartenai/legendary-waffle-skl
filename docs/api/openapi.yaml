@@ -132,7 +132,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/academic-years/{id}:
     get:
       operationId: academic_year_retrieve
@@ -185,7 +185,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: academic_year_update
       description: Requires `academic_year.manage`.
@@ -251,13 +252,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
     delete:
       operationId: academic_year_destroy
       description: 'Requires `academic_year.manage`. `409` while other records still
@@ -305,13 +307,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/audit-events:
     get:
       operationId: audit_events_list
@@ -669,7 +672,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
   /api/v1/auth/token/refresh:
     post:
       operationId: auth_token_refresh_create
@@ -841,7 +845,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/campuses/{id}:
     get:
       operationId: campus_retrieve
@@ -894,7 +898,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: campus_update
       description: Requires `campus.manage`.
@@ -960,13 +965,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
     delete:
       operationId: campus_destroy
       description: 'Requires `campus.manage`. `409` while other records still use
@@ -1014,13 +1020,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/departments:
     get:
       operationId: department_list
@@ -1144,7 +1151,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/departments/{id}:
     get:
       operationId: department_retrieve
@@ -1197,7 +1204,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: department_update
       description: Requires `department.manage`.
@@ -1263,13 +1271,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
     delete:
       operationId: department_destroy
       description: 'Requires `department.manage`. `409` while other records still
@@ -1317,13 +1326,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/enrollments:
     get:
       operationId: enrollment_list
@@ -1469,7 +1479,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/enrollments/{id}:
     get:
       operationId: enrollment_retrieve
@@ -1522,7 +1532,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: enrollment_update
       description: Requires `enrollment.manage`.
@@ -1588,13 +1599,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/enrollments/{id}/end:
     post:
       operationId: enrollments_end_create
@@ -1663,13 +1675,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/enrollments/{id}/transfer:
     post:
       operationId: enrollments_transfer_create
@@ -1738,13 +1751,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/grades:
     get:
       operationId: grade_list
@@ -1868,7 +1882,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/grades/{id}:
     get:
       operationId: grade_retrieve
@@ -1921,7 +1935,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: grade_update
       description: Requires `grade.manage`.
@@ -1987,13 +2002,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
     delete:
       operationId: grade_destroy
       description: 'Requires `grade.manage`. `409` while other records still use it:
@@ -2041,13 +2057,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/guardians:
     get:
       operationId: guardian_list
@@ -2170,7 +2187,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/guardians/{id}:
     get:
       operationId: guardian_retrieve
@@ -2223,7 +2240,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: guardian_update
       description: Requires `guardian.manage`.
@@ -2289,13 +2307,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/health/live:
     get:
       operationId: health_live_retrieve
@@ -2332,6 +2351,502 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReadinessStatus'
           description: ''
+  /api/v1/invitations:
+    get:
+      operationId: invitation_list
+      description: Requires `invitation.read`; results are limited to the caller's
+        data scope for it.
+      summary: List invitations
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: channel
+        schema:
+          type: string
+          enum:
+          - email
+          - phone
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: kind
+        schema:
+          type: string
+          enum:
+          - guardian
+          - staff
+          - student
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - accepted
+          - expired
+          - pending
+          - revoked
+      tags:
+      - invitations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInvitationList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: invitation_create
+      description: Requires `invitation.manage`.
+      summary: Create a invitation
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InvitationCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/invitations/{id}:
+    get:
+      operationId: invitation_retrieve
+      description: 'Requires `invitation.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A invitation
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - invitations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+  /api/v1/invitations/{id}/resend:
+    post:
+      operationId: invitations_resend_create
+      description: Requires `invitation.manage`. Issues a new secret and deadline
+        (the previous link stops working). Allowed for pending and expired invitations,
+        at most once per `INVITATION_RESEND_SECONDS`.
+      summary: Resend an invitation with a new link
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - invitations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
+            header'
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`service_unavailable`'
+  /api/v1/invitations/{id}/revoke:
+    post:
+      operationId: invitations_revoke_create
+      description: Requires `invitation.manage`. A revocation never removes accounts
+        or memberships.
+      summary: Revoke an invitation
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - invitations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+  /api/v1/invitations/accept:
+    post:
+      operationId: invitations_accept_create
+      description: 'Needs a code from `/invitations/verification`. Without a bearer
+        token a new account is created for the invited address and signed in (`409
+        account_exists` if one already uses it: sign in first). With a bearer token
+        the signed-in account accepts. Either way the account joins the school with
+        the invitation''s roles and profile link.'
+      summary: Accept an invitation (public, or signed in)
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AcceptInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptanceOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
+            header'
+  /api/v1/invitations/preview:
+    post:
+      operationId: invitations_preview_create
+      description: Every unusable secret (unknown, expired, revoked, accepted) gives
+        the same `404 invitation_invalid`.
+      summary: What an invitation is for (public)
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenInRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationPreviewOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
+            header'
+  /api/v1/invitations/verification:
+    post:
+      operationId: invitations_verification_create
+      description: The code goes to the invitation's own email or number. `503` if
+        that channel cannot deliver.
+      summary: Send a one-time code to the invited address (public)
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenInRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
+            header'
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`service_unavailable`'
   /api/v1/me:
     get:
       operationId: me_retrieve
@@ -2499,7 +3014,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/memberships/{membership_id}:
     get:
       operationId: memberships_retrieve
@@ -2550,7 +3065,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: memberships_partial_update
       summary: Activate or deactivate a member in this school
@@ -2615,13 +3131,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/memberships/{membership_id}/roles:
     post:
       operationId: memberships_roles_create
@@ -2688,13 +3205,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/memberships/{membership_id}/roles/{role_id}:
     delete:
       operationId: memberships_roles_destroy
@@ -2747,13 +3265,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/permissions:
     get:
       operationId: permissions_list
@@ -2876,7 +3395,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/platform/schools/{school_id}:
     get:
       operationId: platform_schools_retrieve
@@ -2920,7 +3439,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: platform_schools_partial_update
       description: A deactivated school is unreachable for all its members at once.
@@ -2977,7 +3497,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
   /api/v1/platform/users/{user_id}:
     patch:
       operationId: platform_users_partial_update
@@ -3035,7 +3556,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
   /api/v1/roles:
     get:
       operationId: roles_list
@@ -3136,7 +3658,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
   /api/v1/roles/{role_id}:
     get:
       operationId: roles_retrieve
@@ -3187,7 +3710,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: roles_partial_update
       description: The `school_admin` role is locked. Only permissions the caller
@@ -3254,7 +3778,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     delete:
       operationId: roles_destroy
       summary: Delete a custom role
@@ -3300,13 +3825,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/school:
     get:
       operationId: school_retrieve
@@ -3426,7 +3952,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '429':
           content:
             application/json:
@@ -3572,7 +4099,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/sections/{id}:
     get:
       operationId: section_retrieve
@@ -3625,7 +4152,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: section_update
       description: Requires `section.manage`.
@@ -3691,13 +4219,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
     delete:
       operationId: section_destroy
       description: 'Requires `section.manage`. `409` while other records still use
@@ -3745,13 +4274,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/staff:
     get:
       operationId: staff_list
@@ -3894,7 +4424,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/staff/{id}:
     get:
       operationId: staff_retrieve
@@ -3947,7 +4477,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: staff_update
       description: Requires `staff.update`.
@@ -4013,13 +4544,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/student-guardians:
     get:
       operationId: student_guardian_list
@@ -4146,7 +4678,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/student-guardians/{id}:
     get:
       operationId: student_guardian_retrieve
@@ -4199,7 +4731,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: student_guardian_update
       description: Requires `guardian.manage`.
@@ -4265,13 +4798,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
     delete:
       operationId: student_guardian_destroy
       description: 'Requires `guardian.manage`. `409` while other records still use
@@ -4319,13 +4853,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/students:
     get:
       operationId: student_list
@@ -4469,7 +5004,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/students/{id}:
     get:
       operationId: student_retrieve
@@ -4522,7 +5057,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: student_update
       description: Requires `student.update`.
@@ -4588,13 +5124,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/subjects:
     get:
       operationId: subject_list
@@ -4733,7 +5270,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/subjects/{id}:
     get:
       operationId: subject_retrieve
@@ -4786,7 +5323,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: subject_update
       description: Requires `subject.manage`.
@@ -4852,13 +5390,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
     delete:
       operationId: subject_destroy
       description: 'Requires `subject.manage`. `409` while other records still use
@@ -4906,13 +5445,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/teacher-assignments:
     get:
       operationId: teacher_assignment_list
@@ -5060,7 +5600,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
   /api/v1/teacher-assignments/{id}:
     get:
       operationId: teacher_assignment_retrieve
@@ -5113,7 +5653,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
     patch:
       operationId: teacher_assignment_update
       description: Requires `teacher_assignment.manage`.
@@ -5179,13 +5720,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
     delete:
       operationId: teacher_assignment_destroy
       description: 'Requires `teacher_assignment.manage`. `409` while other records
@@ -5233,13 +5775,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`not_found`: does not exist, or is outside the caller''s school
-            or data scope (indistinguishable)'
+            or data scope (indistinguishable); `invitation_invalid` on invitation
+            recipient endpoints'
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-          description: '`conflict`'
+          description: '`conflict`, or `account_exists` when accepting an invitation'
 components:
   schemas:
     AcademicYearCreateInRequest:
@@ -5314,6 +5857,42 @@ components:
         * `planned` - Planned
         * `active` - Active
         * `closed` - Closed
+    AcceptInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        token:
+          type: string
+          minLength: 1
+          description: The secret from the invitation link.
+          maxLength: 128
+        challenge_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 8
+          pattern: ^[0-9]{4,8}$
+      required:
+      - challenge_id
+      - code
+      - token
+    AcceptanceOut:
+      type: object
+      properties:
+        membership:
+          $ref: '#/components/schemas/MyMembershipOut'
+        session:
+          oneOf:
+          - $ref: '#/components/schemas/AuthSessionOut'
+          - type: 'null'
+          description: 'Present when acceptance created the account: the new user
+            is signed in. Otherwise null.'
+      required:
+      - membership
+      - session
     AdminPersonInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -5400,10 +5979,12 @@ components:
       enum:
       - password
       - otp
+      - invitation
       type: string
       description: |-
         * `password` - Password
         * `otp` - One-time code
+        * `invitation` - Accepted an invitation (one-time code)
     AuthSessionOut:
       type: object
       properties:
@@ -5548,6 +6129,14 @@ components:
         * `language` - Language
         * `co_curricular` - Co-curricular
         * `other` - Other
+    ChannelEnum:
+      enum:
+      - email
+      - phone
+      type: string
+      description: |-
+        * `email` - Email
+        * `phone` - Mobile number
     ContactPreferenceEnum:
       enum:
       - phone
@@ -5880,12 +6469,6 @@ components:
         occupation:
           type: string
           maxLength: 100
-        membership_id:
-          type:
-          - string
-          - 'null'
-          format: uuid
-          description: 'Only for guardians who sign in: their membership in this school.'
       required:
       - full_name
     GuardianOut:
@@ -5946,6 +6529,242 @@ components:
       description: |-
         * `ok` - ok
         * `unavailable` - unavailable
+    InvitationCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        channel:
+          allOf:
+          - $ref: '#/components/schemas/ChannelEnum'
+          description: |-
+            Where the link and codes are sent.
+
+            * `email` - Email
+            * `phone` - Mobile number
+        recipient:
+          type: string
+          minLength: 1
+          description: Email address or mobile number.
+          maxLength: 254
+        full_name:
+          type: string
+          minLength: 1
+          description: Used only if acceptance creates a new account.
+          maxLength: 200
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Staff only (required). Students and guardians always get their
+            own system role.
+          maxItems: 20
+        student_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Student invitations.
+        guardian_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Guardian invitations.
+        employee_id:
+          type: string
+          description: Staff only.
+          maxLength: 32
+        staff_type:
+          oneOf:
+          - $ref: '#/components/schemas/StaffTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        designation:
+          type: string
+          maxLength: 100
+        department_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        campus_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      required:
+      - channel
+      - full_name
+      - kind
+      - recipient
+    InvitationOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/KindEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InvitationOutStatusEnum'
+          readOnly: true
+          default: pending
+        channel:
+          allOf:
+          - $ref: '#/components/schemas/ChannelEnum'
+          readOnly: true
+        recipient_hint:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+          description: Used only if acceptance creates a new account.
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleRef'
+        student:
+          oneOf:
+          - $ref: '#/components/schemas/PersonRef'
+          - type: 'null'
+        guardian:
+          oneOf:
+          - $ref: '#/components/schemas/PersonRef'
+          - type: 'null'
+        employee_id:
+          type: string
+          readOnly: true
+        staff_type:
+          allOf:
+          - $ref: '#/components/schemas/StaffTypeEnum'
+          readOnly: true
+        designation:
+          type: string
+          readOnly: true
+        department:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        campus:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        invited_by:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+        send_count:
+          type: integer
+          readOnly: true
+        accepted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        accepted_membership_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          readOnly: true
+        revoked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - accepted_at
+      - accepted_membership_id
+      - campus
+      - channel
+      - created_at
+      - department
+      - designation
+      - employee_id
+      - expires_at
+      - full_name
+      - guardian
+      - id
+      - invited_by
+      - kind
+      - last_sent_at
+      - recipient_hint
+      - revoked_at
+      - roles
+      - send_count
+      - staff_type
+      - status
+      - student
+    InvitationOutStatusEnum:
+      enum:
+      - pending
+      - accepted
+      - revoked
+      - expired
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `accepted` - Accepted
+        * `revoked` - Revoked
+        * `expired` - Expired
+    InvitationPreviewOut:
+      type: object
+      properties:
+        school_name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        role_names:
+          type: array
+          items:
+            type: string
+        channel:
+          $ref: '#/components/schemas/ChannelEnum'
+        recipient_hint:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - channel
+      - expires_at
+      - kind
+      - recipient_hint
+      - role_names
+      - school_name
+    KindEnum:
+      enum:
+      - staff
+      - student
+      - guardian
+      type: string
+      description: |-
+        * `staff` - Staff member or teacher
+        * `student` - Student
+        * `guardian` - Parent or guardian
     LogoutInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -6299,6 +7118,27 @@ components:
       - next
       - previous
       - results
+    PaginatedInvitationList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvitationOut'
+      required:
+      - next
+      - previous
+      - results
     PaginatedSectionList:
       type: object
       properties:
@@ -6591,12 +7431,6 @@ components:
         occupation:
           type: string
           maxLength: 100
-        membership_id:
-          type:
-          - string
-          - 'null'
-          format: uuid
-          description: 'Only for guardians who sign in: their membership in this school.'
     PatchedMembershipUpdateInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -6872,12 +7706,6 @@ components:
           - string
           - 'null'
           format: date
-        membership_id:
-          type:
-          - string
-          - 'null'
-          format: uuid
-          description: 'Only for students who sign in: their membership in this school.'
         status:
           $ref: '#/components/schemas/StudentStatusEnum'
     PatchedSubjectInRequest:
@@ -7125,6 +7953,20 @@ components:
       - name
       - permissions
       - updated_at
+    RoleRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        name:
+          type: string
+      required:
+      - id
+      - key
+      - name
     SchoolCreateInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -7609,12 +8451,6 @@ components:
           - string
           - 'null'
           format: date
-        membership_id:
-          type:
-          - string
-          - 'null'
-          format: uuid
-          description: 'Only for students who sign in: their membership in this school.'
         status:
           $ref: '#/components/schemas/StudentStatusEnum'
       required:
@@ -7855,6 +8691,18 @@ components:
       - status
       - subject
       - updated_at
+    TokenInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        token:
+          type: string
+          minLength: 1
+          description: The secret from the invitation link.
+          maxLength: 128
+      required:
+      - token
     TokenPairOut:
       type: object
       properties:
@@ -7917,6 +8765,23 @@ components:
       - language
       - must_change_password
       - phone
+    VerificationOut:
+      type: object
+      properties:
+        challenge_id:
+          type: string
+          format: uuid
+        expires_in:
+          type: integer
+        resend_in:
+          type: integer
+        dev_code:
+          type: string
+          description: Local development only.
+      required:
+      - challenge_id
+      - expires_in
+      - resend_in
   securitySchemes:
     bearerAuth:
       type: http

@@ -65,7 +65,16 @@ Domain permissions such as `student.*` and `attendance.*` exist now so that role
 | `enrollment` | `read`, `manage` | teacher `section`, parent `child`, student `self`, office roles `school` |
 | `teacher_assignment` | `read`, `manage` | teacher `self` + `section`, parent `child`, student `self` |
 
-Phase 3 writes need the write permission with `school` scope, and linking an account to a profile also needs school-wide `user.update` ([phase-3.md](../architecture/phase-3.md#authorization-and-data-scopes)). The scope rules for these resources are in `people/policies.py` (see [phase-3.md](../architecture/phase-3.md#authorization-and-data-scopes)).
+Phase 3 writes need the write permission with `school` scope, and linking an account to a profile happens only by accepting an invitation (ADR-025) ([phase-3.md](../architecture/phase-3.md#authorization-and-data-scopes)). The scope rules for these resources are in `people/policies.py` (see [phase-3.md](../architecture/phase-3.md#authorization-and-data-scopes)).
+
+### Phase 4 invitations
+
+| Permission | Default grants | Notes |
+|---|---|---|
+| `invitation.read` | school admin, principal (`school`) | Masked addresses only |
+| `invitation.manage` | school admin, principal (`school`) | Create, resend and revoke also need school-wide `user.create`, `user.update` and the target permission (`staff.create`, `student.update` or `guardian.manage`) |
+
+Invitation roles follow the escalation guard below: a principal cannot invite with `school_admin`, because it lacks `role.delete`. The inviter's authority is re-checked at resend and at acceptance ([invitations.md](invitations.md)). No other role holds `invitation.*`, and platform administrators have no implicit school access.
 
 ### Adding a permission
 

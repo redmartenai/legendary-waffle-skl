@@ -1,6 +1,6 @@
 # Guardians
 
-A **guardian** is a parent or guardian as the school knows them: `full_name`, `phone` (normalised to E.164), `email`, `occupation`, and an optional `membership` when they sign in. Contact details live here because many guardians never have an account.
+A **guardian** is a parent or guardian as the school knows them: `full_name`, `phone` (normalised to E.164), `email`, `occupation`, and an optional `membership` when they sign in. The membership is read-only in the API: it is set only when the guardian accepts a guardian invitation (ADR-025), which is what gives a parent their children. Contact details live here because many guardians never have an account.
 
 A **student-guardian link** (`/student-guardians`) connects them:
 
@@ -18,5 +18,5 @@ A **student-guardian link** (`/student-guardians`) connects them:
   - `self`: the guardian's own record, and a student's own guardians
   - `section`: guardians of students the teacher teaches
 - Permissions: `guardian.read`, `guardian.manage`.
-- Audit: `people.guardian.created|updated|linked|link_updated|unlinked`.
+- Audit: `people.guardian.created|updated|linked|link_updated|unlinked|account_linked`.
 - Communication with guardians is a later phase.

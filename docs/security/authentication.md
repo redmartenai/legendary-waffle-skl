@@ -46,6 +46,10 @@ The password comes from the environment or a prompt, never from a command-line a
 
 A user created by platform staff with a `temporary_password` (school onboarding) has `must_change_password = true`. Schools cannot set passwords on the accounts they create ([multitenancy.md](multitenancy.md#adding-members)). Until they call `POST /auth/password/change`, every endpoint except `/me`, `/auth/password/change`, `/auth/logout*` and `/auth/sessions*` returns `403 password_change_required`.
 
+### Invitation sign-in (Phase 4)
+
+Accepting an invitation without being signed in proves control of the invited email or phone by a one-time code, creates (or claims) the account with that identifier verified, and returns a session (`auth.login`, `metadata.method = invitation`). See [invitations.md](invitations.md).
+
 ## Endpoints
 
 | Endpoint | Auth | Purpose |
@@ -56,7 +60,7 @@ A user created by platform staff with a `temporary_password` (school onboarding)
 | `POST /auth/token/refresh` | refresh token, rate-limited | `{refresh}` → new `{access, refresh}` |
 | `POST /auth/logout` | access token | Revoke this session (and optionally the session of a given `refresh`) |
 | `POST /auth/logout-all` | access token | Revoke every session of the user |
-| `POST /auth/password/change` | access token, rate-limited | Revokes every *other* session. `current_password` may be omitted only by an account that has no password yet. |
+| `POST /auth/password/change` | access token, rate-limited | Revokes every *other* session. `current_password` may be omitted only by an account that has no password yet, and then only from a session created in the last 15 minutes (an OTP or invitation sign-in); otherwise `403`. |
 | `GET /auth/sessions`, `DELETE /auth/sessions/{id}` | access token | List and revoke your own sessions |
 | `GET /me` | access token | User plus active memberships with roles (no `X-School-Id` needed) |
 

@@ -41,10 +41,11 @@ Membership(user, school, is_active) AND school.is_active ?
 - **A school can attach an existing account only through a *verified* identifier.** Every email or phone that matched must be verified. Otherwise the answer is `409 conflict`, with one generic message for every such case.
   - A phone becomes verified when its owner signs in with an OTP sent to it.
   - Identifiers entered by platform staff (school onboarding, `create_platform_admin`) count as verified.
-  - Email verification arrives with the invite flow (Phase 4). Until then a school can attach existing accounts by phone only.
+  - An email becomes verified when its owner accepts an invitation sent to it (Phase 4).
 - **A school cannot set a password** on the accounts it creates. They have no usable password and unverified identifiers; the person signs in by phone OTP and may then set a first password (`POST /auth/password/change` without `current_password`).
 - An existing account's profile is never edited by a school.
 - Adding members is rate-limited per admin (`member_create_user`, 60 per hour).
+- **Invitations** (Phase 4) are the consent-based way in: the person proves control of the address and joins with the invitation's roles and record link. Public invitation endpoints find the school by the secret's digest under a logged bypass (`invitation_lookup`) and then run in that school's context. See [invitations.md](invitations.md).
 
 Without these rules, school A could register a teacher's email or phone with a password it knows, and receive the access school B later grants that teacher (found in the Phase 2 security review).
 

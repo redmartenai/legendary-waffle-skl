@@ -514,3 +514,24 @@ A user can belong to several schools (Phase 2). Staff, student and guardian reco
 
 - Twelve resources share one tested authorization path, instead of twelve hand-written ones.
 - Lifecycle operations that are not CRUD (enrollment end and transfer) are explicit actions with their own permission check.
+
+## ADR-025: Accounts join schools and link to student or guardian records only through verified invitations. *Accepted (Phase 4)*
+
+**Context**
+
+Phase 3 let an administrator set `membership_id` on a student or guardian record directly. Nothing proved that the person behind the membership controlled the contact details of that student or guardian, so a mistyped or malicious link would give a stranger a child's data (child scope follows `StudentGuardian`).
+
+**Decision**
+
+- `membership_id` is removed from the student and guardian write APIs. A record is linked to an account only by accepting an invitation for that record (`people.services.link_student_account` / `link_guardian_account`, called by `invitations`).
+- An invitation stores only the SHA-256 digest of a 32-byte random secret. The link carries the secret after `#`, so it stays out of server logs. Public endpoints find the invitation by digest under a named, logged RLS bypass, then work in that school's context.
+- Acceptance requires a one-time code sent to the invited address (OTP purpose `invitation`, bound to the invitation). It verifies exactly that channel.
+- Roles and links are applied with the inviter's **current** authority at acceptance and resend (Phase 2 escalation rule). An inviter who lost access voids their pending invitations.
+- Anonymous acceptance never takes over an account someone can sign in to (`409 account_exists`). An account nobody can reach (no password, nothing verified) is claimed by the verified recipient.
+
+**Consequences**
+
+- Guardian and student access always rests on a proven contact channel.
+- One more public surface (preview, verification, accept), rate limited per IP and per secret.
+- Delivery happens inside the transaction until the outbox (ADR-010) exists; a provider failure rolls the invitation back.
+- Unlinking an account from a record needs its own audited flow (deferred).

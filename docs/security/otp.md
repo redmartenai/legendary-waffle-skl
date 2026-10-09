@@ -1,4 +1,4 @@
-# One-Time Codes (phone sign-in)
+# One-Time Codes (sign-in and invitations)
 
 Decisions: ADR-005, ADR-021. Code: `backend/eduflow/identity/otp/`.
 
@@ -12,6 +12,13 @@ POST /auth/otp/request ─► otp.service.request_code ─► SmsProvider.send(p
                                                           └── <your gateway>       (production)
 POST /auth/otp/verify  ─► otp.service.verify_code ─► session (token-lifecycle.md)
 ```
+
+Since Phase 4 the same service also issues **invitation codes** (`request_invitation_code` / `consume_invitation_code`), delivered by `identity/delivery.py` over SMS or email:
+
+- Each challenge has a `purpose` (`login` or `invitation`) and, for invitations, a `subject_id` (the invitation). A code is only ever accepted for its own purpose and subject.
+- The address is stored as `address_hash` (HMAC of channel and address; formerly `phone_hash`). Migration `identity.0003` closed open codes when the digest changed.
+- Cooldowns and invalidation for invitation codes are per invitation, so invitations from two schools to one address do not interfere.
+- An invitation code is sent only to the invitation's stored address, never to one the caller supplies. See [invitations.md](invitations.md).
 
 The service owns every security rule. An adapter only delivers a message. `OTP_SMS_PROVIDER` (a dotted path) selects the adapter.
 

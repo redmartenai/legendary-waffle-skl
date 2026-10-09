@@ -55,7 +55,9 @@ Every error, from DRF, Django or a crash, uses one envelope:
 | `not_found` | 404 | The resource does not exist **or is outside the caller's tenant or scope**. These are deliberately the same, so the API does not leak whether an object exists. |
 | `method_not_allowed` | 405 | |
 | `not_acceptable` / `unsupported_media_type` | 406 / 415 | |
+| `invitation_invalid` | 404 | The invitation link is unknown, superseded, expired, revoked, accepted, or its inviter can no longer grant it. One response for all of these. |
 | `conflict` | 409 | The request conflicts with the current state (duplicate, last admin, role still assigned) |
+| `account_exists` | 409 | The invited address belongs to an account: sign in, then accept |
 | `rate_limited` | 429 | See `retry_after_seconds` |
 | `service_unavailable` | 503 | A dependency is unavailable (e.g. no SMS provider configured) |
 | `server_error` | 500 | A bug. No internal detail is ever returned. Quote `request_id` to support. |
@@ -120,3 +122,4 @@ Client types are generated from this file with `openapi-typescript` once the cli
 | 2026-10-08 | v1 created: `health/live`, `health/ready`, error envelope, request IDs |
 | 2026-10-08 | Phase 2: `auth/*` (password, OTP, refresh, logout, sessions), `me`, `me/permissions`, `schools/lookup`, `school`, `memberships`, `roles`, `permissions`, `audit-events`, `platform/*`; error codes `tenant_required`, `tenant_forbidden`, `invalid_credentials`, `invalid_code`, `password_change_required`, `conflict`, `service_unavailable`; bearer security scheme |
 | 2026-10-08 | Phase 3: `campuses`, `academic-years`, `departments`, `grades`, `sections`, `subjects`, `staff`, `students`, `guardians`, `student-guardians`, `enrollments` (+ `/end`, `/transfer`), `teacher-assignments`; school profile fields on `school` and `platform/schools`. Health status enum renamed `HealthStatusEnum` in the schema (values unchanged). |
+| 2026-10-09 | Phase 4: `invitations` (list, create, retrieve, `/resend`, `/revoke`), public `invitations/preview`, `invitations/verification`, `invitations/accept`; error codes `invitation_invalid`, `account_exists`. **Breaking:** `membership_id` removed from student and guardian create/update (link by invitation, ADR-025). |

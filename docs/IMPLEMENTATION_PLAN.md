@@ -200,3 +200,14 @@ Implemented on branch `phase-3/core-school-domain`, which combines the plan's Ph
 | `/platform/schools` POST with year, grades, sections | Phase 3 | School + roles + first admin only (Phase 2); the structure is created through the canonical APIs | Keeps onboarding small. A bootstrap command can follow the MVP slice. |
 | Invites, temporary passwords for staff and parents | Phase 4 | Not built. School-created accounts sign in by phone OTP (Phase 2 security review). | Needs email delivery. |
 | Promotion to the next year | — | Not built | Explicitly out of scope |
+
+## 8. Phase 4 status (2026-10-09)
+
+Implemented on branch `phase-4/invitations-identity-lifecycle`, from Phase 3 commit `f42456e`. The design is in [architecture/phase-4.md](architecture/phase-4.md), [security/invitations.md](security/invitations.md) and ADR-025.
+
+| Item | Plan | Actual | Reason |
+|---|---|---|---|
+| Invites | `/auth/invite/{token}` | `POST /invitations/preview`, `/verification`, `/accept` (secret in the body, never in the URL); management under `/invitations` | Secrets stay out of URLs and logs |
+| Email delivery | Phase 9 notifications | A minimal `identity.delivery` boundary (Django email backend, disabled by default) | Invitations need it; the outbox follows in Phase 9 |
+| Linking accounts to students and guardians | Admin sets `membership_id` (Phase 3) | Only by accepting a verified invitation (ADR-025) | A direct link could give a stranger a child's data |
+| Role-specific screens | — | Backend authorization only; no frontend changes | Client work starts with the MVP slice (Phase 6) |
