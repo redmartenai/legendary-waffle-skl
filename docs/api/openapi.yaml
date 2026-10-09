@@ -4,6 +4,314 @@ info:
   version: 1.0.0
   description: EduFlow School Operating System API. See docs/api/conventions.md.
 paths:
+  /api/v1/academic-years:
+    get:
+      operationId: academic_year_list
+      description: Requires `academic_year.read`; results are limited to the caller's
+        data scope for it.
+      summary: List academic years
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: is_current
+        schema:
+          type: boolean
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - closed
+          - planned
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAcademicYearList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: academic_year_create
+      description: Requires `academic_year.manage`.
+      summary: Create a academic year
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcademicYearCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AcademicYearCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicYearOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/academic-years/{id}:
+    get:
+      operationId: academic_year_retrieve
+      description: 'Requires `academic_year.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A academic year
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicYearOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: academic_year_update
+      description: Requires `academic_year.manage`.
+      summary: Update a academic year
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAcademicYearUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAcademicYearUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicYearOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+    delete:
+      operationId: academic_year_destroy
+      description: 'Requires `academic_year.manage`. `409` while other records still
+        use it: archive it instead.'
+      summary: Delete a academic year
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
   /api/v1/audit-events:
     get:
       operationId: audit_events_list
@@ -410,6 +718,1584 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
             header'
+  /api/v1/campuses:
+    get:
+      operationId: campus_list
+      description: Requires `campus.read`; results are limited to the caller's data
+        scope for it.
+      summary: List campuss
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - archived
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCampusList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: campus_create
+      description: Requires `campus.manage`.
+      summary: Create a campus
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CampusInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CampusInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampusOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/campuses/{id}:
+    get:
+      operationId: campus_retrieve
+      description: 'Requires `campus.read`; results are limited to the caller''s data
+        scope for it. Outside the scope or school: `404`.'
+      summary: A campus
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampusOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: campus_update
+      description: Requires `campus.manage`.
+      summary: Update a campus
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCampusInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCampusInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampusOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+    delete:
+      operationId: campus_destroy
+      description: 'Requires `campus.manage`. `409` while other records still use
+        it: archive it instead.'
+      summary: Delete a campus
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/departments:
+    get:
+      operationId: department_list
+      description: Requires `department.read`; results are limited to the caller's
+        data scope for it.
+      summary: List departments
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - archived
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDepartmentList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: department_create
+      description: Requires `department.manage`.
+      summary: Create a department
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DepartmentInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/departments/{id}:
+    get:
+      operationId: department_retrieve
+      description: 'Requires `department.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A department
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: department_update
+      description: Requires `department.manage`.
+      summary: Update a department
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartmentInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartmentInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+    delete:
+      operationId: department_destroy
+      description: 'Requires `department.manage`. `409` while other records still
+        use it: archive it instead.'
+      summary: Delete a department
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/enrollments:
+    get:
+      operationId: enrollment_list
+      description: Requires `enrollment.read`; results are limited to the caller's
+        data scope for it.
+      summary: List enrollments
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: academic_year_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: grade_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: section_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - completed
+          - transferred
+          - withdrawn
+      - in: query
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEnrollmentList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: enrollment_create
+      description: Requires `enrollment.manage`.
+      summary: Create a enrollment
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EnrollmentCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/enrollments/{id}:
+    get:
+      operationId: enrollment_retrieve
+      description: 'Requires `enrollment.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A enrollment
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: enrollment_update
+      description: Requires `enrollment.manage`.
+      summary: Update a enrollment
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollmentUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollmentUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/enrollments/{id}/end:
+    post:
+      operationId: enrollments_end_create
+      description: Requires `enrollment.manage`. Only an active enrollment can end;
+        the change is final.
+      summary: Complete or withdraw an enrollment
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentEndInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EnrollmentEndInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/enrollments/{id}/transfer:
+    post:
+      operationId: enrollments_transfer_create
+      description: Requires `enrollment.manage`. Marks this enrollment `transferred`
+        and returns the new active one.
+      summary: Transfer a student to another section of the same academic year
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentTransferInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EnrollmentTransferInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/grades:
+    get:
+      operationId: grade_list
+      description: Requires `grade.read`; results are limited to the caller's data
+        scope for it.
+      summary: List grades
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - archived
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGradeList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: grade_create
+      description: Requires `grade.manage`.
+      summary: Create a grade
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradeInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradeInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradeOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/grades/{id}:
+    get:
+      operationId: grade_retrieve
+      description: 'Requires `grade.read`; results are limited to the caller''s data
+        scope for it. Outside the scope or school: `404`.'
+      summary: A grade
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradeOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: grade_update
+      description: Requires `grade.manage`.
+      summary: Update a grade
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGradeInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGradeInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradeOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+    delete:
+      operationId: grade_destroy
+      description: 'Requires `grade.manage`. `409` while other records still use it:
+        archive it instead.'
+      summary: Delete a grade
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/guardians:
+    get:
+      operationId: guardian_list
+      description: Requires `guardian.read`; results are limited to the caller's data
+        scope for it.
+      summary: List guardians
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        description: Guardians linked to this student.
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGuardianList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: guardian_create
+      description: Requires `guardian.manage`.
+      summary: Create a guardian
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuardianInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GuardianInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardianOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/guardians/{id}:
+    get:
+      operationId: guardian_retrieve
+      description: 'Requires `guardian.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A guardian
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardianOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: guardian_update
+      description: Requires `guardian.manage`.
+      summary: Update a guardian
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGuardianInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGuardianInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardianOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
   /api/v1/health/live:
     get:
       operationId: health_live_retrieve
@@ -1548,8 +3434,1886 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: '`rate_limited`: see `retry_after_seconds` and the `Retry-After`
             header'
+  /api/v1/sections:
+    get:
+      operationId: section_list
+      description: Requires `section.read`; results are limited to the caller's data
+        scope for it.
+      summary: List sections
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: academic_year_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: campus_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: grade_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - archived
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSectionList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: section_create
+      description: Requires `section.manage`.
+      summary: Create a section
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SectionCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SectionCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/sections/{id}:
+    get:
+      operationId: section_retrieve
+      description: 'Requires `section.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A section
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: section_update
+      description: Requires `section.manage`.
+      summary: Update a section
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSectionUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSectionUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+    delete:
+      operationId: section_destroy
+      description: 'Requires `section.manage`. `409` while other records still use
+        it: archive it instead.'
+      summary: Delete a section
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/staff:
+    get:
+      operationId: staff_list
+      description: Requires `staff.read`; results are limited to the caller's data
+        scope for it.
+      summary: List staffs
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: campus_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: department_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: staff_type
+        schema:
+          type: string
+          enum:
+          - non_teaching
+          - teaching
+        description: '`teaching` lists teachers.'
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - left
+          - on_leave
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStaffList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: staff_create
+      description: Requires `staff.create`.
+      summary: Create a staff
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/staff/{id}:
+    get:
+      operationId: staff_retrieve
+      description: 'Requires `staff.read`; results are limited to the caller''s data
+        scope for it. Outside the scope or school: `404`.'
+      summary: A staff
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: staff_update
+      description: Requires `staff.update`.
+      summary: Update a staff
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/student-guardians:
+    get:
+      operationId: student_guardian_list
+      description: Requires `guardian.read`; results are limited to the caller's data
+        scope for it.
+      summary: List student guardians
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: guardian_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentGuardianList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: student_guardian_create
+      description: Requires `guardian.manage`.
+      summary: Create a student guardian
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentGuardianCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentGuardianCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentGuardianOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/student-guardians/{id}:
+    get:
+      operationId: student_guardian_retrieve
+      description: 'Requires `guardian.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A student guardian
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentGuardianOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: student_guardian_update
+      description: Requires `guardian.manage`.
+      summary: Update a student guardian
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentGuardianUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentGuardianUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentGuardianOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+    delete:
+      operationId: student_guardian_destroy
+      description: 'Requires `guardian.manage`. `409` while other records still use
+        it: archive it instead.'
+      summary: Delete a student guardian
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/students:
+    get:
+      operationId: student_list
+      description: Requires `student.read`; results are limited to the caller's data
+        scope for it.
+      summary: List students
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: academic_year_id
+        schema:
+          type: string
+          format: uuid
+        description: Students actively enrolled in this academic year.
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: grade_id
+        schema:
+          type: string
+          format: uuid
+        description: Students actively enrolled in this grade.
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: section_id
+        schema:
+          type: string
+          format: uuid
+        description: Students actively enrolled in this section.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - graduated
+          - inactive
+          - left
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: student_create
+      description: Requires `student.create`.
+      summary: Create a student
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/students/{id}:
+    get:
+      operationId: student_retrieve
+      description: 'Requires `student.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A student
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: student_update
+      description: Requires `student.update`.
+      summary: Update a student
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/subjects:
+    get:
+      operationId: subject_list
+      description: Requires `subject.read`; results are limited to the caller's data
+        scope for it.
+      summary: List subjects
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: category
+        schema:
+          type: string
+          enum:
+          - co_curricular
+          - core
+          - elective
+          - language
+          - other
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: department_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - archived
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSubjectList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: subject_create
+      description: Requires `subject.manage`.
+      summary: Create a subject
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubjectInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubjectInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/subjects/{id}:
+    get:
+      operationId: subject_retrieve
+      description: 'Requires `subject.read`; results are limited to the caller''s
+        data scope for it. Outside the scope or school: `404`.'
+      summary: A subject
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: subject_update
+      description: Requires `subject.manage`.
+      summary: Update a subject
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+    delete:
+      operationId: subject_destroy
+      description: 'Requires `subject.manage`. `409` while other records still use
+        it: archive it instead.'
+      summary: Delete a subject
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/teacher-assignments:
+    get:
+      operationId: teacher_assignment_list
+      description: Requires `teacher_assignment.read`; results are limited to the
+        caller's data scope for it.
+      summary: List teacher assignments
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: query
+        name: academic_year_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque cursor from `next` / `previous`.
+      - in: query
+        name: is_class_teacher
+        schema:
+          type: boolean
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 1-200, default 50.
+      - in: query
+        name: section_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: staff_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - ended
+      - in: query
+        name: subject_id
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTeacherAssignmentList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+    post:
+      operationId: teacher_assignment_create
+      description: Requires `teacher_assignment.manage`.
+      summary: Create a teacher assignment
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherAssignmentCreateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeacherAssignmentCreateInRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherAssignmentOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+  /api/v1/teacher-assignments/{id}:
+    get:
+      operationId: teacher_assignment_retrieve
+      description: 'Requires `teacher_assignment.read`; results are limited to the
+        caller''s data scope for it. Outside the scope or school: `404`.'
+      summary: A teacher assignment
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherAssignmentOut'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+    patch:
+      operationId: teacher_assignment_update
+      description: Requires `teacher_assignment.manage`.
+      summary: Update a teacher assignment
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherAssignmentUpdateInRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherAssignmentUpdateInRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherAssignmentOut'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`validation_error` (details in `fields`), `parse_error` or
+            `tenant_required`'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
+    delete:
+      operationId: teacher_assignment_destroy
+      description: 'Requires `teacher_assignment.manage`. `409` while other records
+        still use it: archive it instead.'
+      summary: Delete a teacher assignment
+      parameters:
+      - in: header
+        name: X-School-Id
+        schema:
+          type: string
+          format: uuid
+        description: The school this request acts in. It is checked against the caller's
+          active memberships on every request; a school the caller does not belong
+          to gives `403 tenant_forbidden`.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - people
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_authenticated`: missing, invalid, expired or revoked
+            credentials'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`permission_denied`, `tenant_forbidden` or `password_change_required`'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`not_found`: does not exist, or is outside the caller''s school
+            or data scope (indistinguishable)'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: '`conflict`'
 components:
   schemas:
+    AcademicYearCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+      required:
+      - end_date
+      - name
+      - start_date
+    AcademicYearOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+          description: For example "2026-27".
+        start_date:
+          type: string
+          format: date
+          readOnly: true
+        end_date:
+          type: string
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AcademicYearStatusEnum'
+          readOnly: true
+        is_current:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - end_date
+      - id
+      - is_current
+      - name
+      - start_date
+      - status
+      - updated_at
+    AcademicYearStatusEnum:
+      enum:
+      - planned
+      - active
+      - closed
+      type: string
+      description: |-
+        * `planned` - Planned
+        * `active` - Active
+        * `closed` - Closed
     AdminPersonInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -1573,6 +5337,14 @@ components:
           maxLength: 256
       required:
       - full_name
+    AssignmentStatusEnum:
+      enum:
+      - active
+      - ended
+      type: string
+      description: |-
+        * `active` - Active
+        * `ended` - Ended
     AuditEventOut:
       type: object
       properties:
@@ -1664,6 +5436,333 @@ components:
       - refresh
       - refresh_expires_at
       - user
+    BlankEnum:
+      enum:
+      - ''
+    CampusInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        address_line1:
+          type: string
+          maxLength: 200
+        address_line2:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        postal_code:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          minLength: 1
+          pattern: ^[A-Z]{2}$
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
+      required:
+      - code
+      - name
+    CampusOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        address_line1:
+          type: string
+          readOnly: true
+        address_line2:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        state:
+          type: string
+          readOnly: true
+        postal_code:
+          type: string
+          readOnly: true
+        country:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RecordStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - address_line1
+      - address_line2
+      - city
+      - code
+      - country
+      - created_at
+      - id
+      - name
+      - postal_code
+      - state
+      - status
+      - updated_at
+    CategoryEnum:
+      enum:
+      - core
+      - elective
+      - language
+      - co_curricular
+      - other
+      type: string
+      description: |-
+        * `core` - Core
+        * `elective` - Elective
+        * `language` - Language
+        * `co_curricular` - Co-curricular
+        * `other` - Other
+    ContactPreferenceEnum:
+      enum:
+      - phone
+      - sms
+      - email
+      - app
+      type: string
+      description: |-
+        * `phone` - Phone
+        * `sms` - SMS
+        * `email` - Email
+        * `app` - App
+    DepartmentInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        description:
+          type: string
+          maxLength: 500
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
+      required:
+      - code
+      - name
+    DepartmentOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        description:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RecordStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - code
+      - created_at
+      - description
+      - id
+      - name
+      - status
+      - updated_at
+    EnrollmentCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        student_id:
+          type: string
+          format: uuid
+        section_id:
+          type: string
+          format: uuid
+          description: The academic year and grade are taken from the section.
+        roll_number:
+          type: string
+          maxLength: 16
+        start_date:
+          type: string
+          format: date
+          description: Defaults to today.
+      required:
+      - section_id
+      - student_id
+    EnrollmentEndInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        status:
+          $ref: '#/components/schemas/EnrollmentEndStatusEnum'
+        end_date:
+          type: string
+          format: date
+          description: Defaults to today.
+        reason:
+          type: string
+          maxLength: 200
+      required:
+      - status
+    EnrollmentEndStatusEnum:
+      enum:
+      - completed
+      - withdrawn
+      type: string
+      description: |-
+        * `completed` - completed
+        * `withdrawn` - withdrawn
+    EnrollmentOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          $ref: '#/components/schemas/PersonRef'
+        academic_year:
+          $ref: '#/components/schemas/Ref'
+        grade:
+          $ref: '#/components/schemas/Ref'
+        section:
+          $ref: '#/components/schemas/Ref'
+        roll_number:
+          type: string
+          readOnly: true
+          default: ''
+        status:
+          allOf:
+          - $ref: '#/components/schemas/EnrollmentStatusEnum'
+          readOnly: true
+          default: active
+        start_date:
+          type: string
+          format: date
+          readOnly: true
+        end_date:
+          type:
+          - string
+          - 'null'
+          format: date
+          readOnly: true
+        status_reason:
+          type: string
+          readOnly: true
+        transferred_to_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - academic_year
+      - created_at
+      - end_date
+      - grade
+      - id
+      - roll_number
+      - section
+      - start_date
+      - status
+      - status_reason
+      - student
+      - transferred_to_id
+      - updated_at
+    EnrollmentStatusEnum:
+      enum:
+      - active
+      - completed
+      - withdrawn
+      - transferred
+      type: string
+      description: |-
+        * `active` - Active
+        * `completed` - Completed
+        * `withdrawn` - Withdrawn
+        * `transferred` - Transferred
+    EnrollmentTransferInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        section_id:
+          type: string
+          format: uuid
+          description: A section of the same academic year.
+        date:
+          type: string
+          format: date
+          description: Defaults to today.
+        reason:
+          type: string
+          maxLength: 200
+        roll_number:
+          type: string
+          maxLength: 16
+      required:
+      - section_id
     ErrorBody:
       type: object
       properties:
@@ -1688,13 +5787,165 @@ components:
           $ref: '#/components/schemas/ErrorBody'
       required:
       - error
+    GenderEnum:
+      enum:
+      - female
+      - male
+      - other
+      - undisclosed
+      type: string
+      description: |-
+        * `female` - Female
+        * `male` - Male
+        * `other` - Other
+        * `undisclosed` - Prefer not to say
+    GradeInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        display_order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
+      required:
+      - code
+      - name
+    GradeOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        display_order:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RecordStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - code
+      - created_at
+      - display_order
+      - id
+      - name
+      - status
+      - updated_at
+    GuardianInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        phone:
+          type: string
+          maxLength: 32
+        email:
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        occupation:
+          type: string
+          maxLength: 100
+        membership_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: 'Only for guardians who sign in: their membership in this school.'
+      required:
+      - full_name
+    GuardianOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        membership_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        occupation:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - full_name
+      - id
+      - membership_id
+      - occupation
+      - phone
+      - updated_at
     HealthStatus:
       type: object
       properties:
         status:
-          $ref: '#/components/schemas/StatusEnum'
+          $ref: '#/components/schemas/HealthStatusEnum'
       required:
       - status
+    HealthStatusEnum:
+      enum:
+      - ok
+      - unavailable
+      type: string
+      description: |-
+        * `ok` - ok
+        * `unavailable` - unavailable
     LogoutInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -1922,6 +6173,258 @@ components:
         * `success` - Success
         * `failure` - Failure
         * `denied` - Denied
+    PaginatedAcademicYearList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AcademicYearOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedCampusList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampusOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedDepartmentList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DepartmentOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedEnrollmentList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnrollmentOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedGradeList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/GradeOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedGuardianList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/GuardianOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedSectionList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SectionOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedStaffList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedStudentGuardianList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentGuardianOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedStudentList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedSubjectList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubjectOut'
+      required:
+      - next
+      - previous
+      - results
+    PaginatedTeacherAssignmentList:
+      type: object
+      properties:
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeacherAssignmentOut'
+      required:
+      - next
+      - previous
+      - results
     PasswordChangeInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -1958,6 +6461,142 @@ components:
       required:
       - identifier
       - password
+    PatchedAcademicYearUpdateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AcademicYearStatusEnum'
+          description: |-
+            planned -> active -> closed. Closed is final.
+
+            * `planned` - Planned
+            * `active` - Active
+            * `closed` - Closed
+        is_current:
+          type: boolean
+          description: Making a year current un-sets the previous one.
+    PatchedCampusInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        address_line1:
+          type: string
+          maxLength: 200
+        address_line2:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        postal_code:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          minLength: 1
+          pattern: ^[A-Z]{2}$
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
+    PatchedDepartmentInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        description:
+          type: string
+          maxLength: 500
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
+    PatchedEnrollmentUpdateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        roll_number:
+          type: string
+          maxLength: 16
+    PatchedGradeInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        display_order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
+    PatchedGuardianInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        phone:
+          type: string
+          maxLength: 32
+        email:
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        occupation:
+          type: string
+          maxLength: 100
+        membership_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: 'Only for guardians who sign in: their membership in this school.'
     PatchedMembershipUpdateInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -2005,16 +6644,243 @@ components:
           description: Replaces the role's whole permission set.
     PatchedSchoolPatchInRequest:
       type: object
-      description: Rejects unknown fields, so a client cannot slip extra attributes
-        into a write (mass assignment).
+      description: Platform staff may edit the full profile and activate or deactivate
+        the school.
       properties:
         name:
           type: string
           minLength: 1
           maxLength: 200
+        legal_name:
+          type: string
+          maxLength: 200
+        short_name:
+          type: string
+          maxLength: 50
+        email:
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        phone:
+          type: string
+          maxLength: 32
+        website:
+          oneOf:
+          - type: string
+            format: uri
+          - type: string
+            maxLength: 0
+        address_line1:
+          type: string
+          maxLength: 200
+        address_line2:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        postal_code:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          minLength: 1
+          description: ISO 3166-1 alpha-2, e.g. IN.
+          pattern: ^[A-Z]{2}$
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        settings:
+          type: object
+          additionalProperties: {}
+          description: School preferences. Never credentials.
         is_active:
           type: boolean
     PatchedSchoolUpdateInRequest:
+      type: object
+      description: The school's own profile. The code and active flag are platform-controlled.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        legal_name:
+          type: string
+          maxLength: 200
+        short_name:
+          type: string
+          maxLength: 50
+        email:
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        phone:
+          type: string
+          maxLength: 32
+        website:
+          oneOf:
+          - type: string
+            format: uri
+          - type: string
+            maxLength: 0
+        address_line1:
+          type: string
+          maxLength: 200
+        address_line2:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        postal_code:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          minLength: 1
+          description: ISO 3166-1 alpha-2, e.g. IN.
+          pattern: ^[A-Z]{2}$
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        settings:
+          type: object
+          additionalProperties: {}
+          description: School preferences. Never credentials.
+    PatchedSectionUpdateInRequest:
+      type: object
+      description: The year and grade of a section are fixed; create a new section
+        instead.
+      properties:
+        campus_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        capacity:
+          type:
+          - integer
+          - 'null'
+          maximum: 32767
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
+    PatchedStaffUpdateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        employee_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        staff_type:
+          $ref: '#/components/schemas/StaffTypeEnum'
+        designation:
+          type: string
+          maxLength: 100
+        department_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        campus_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        joining_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StaffStatusEnum'
+          description: |-
+            `left` also ends the person's active teacher assignments.
+
+            * `active` - Active
+            * `on_leave` - On leave
+            * `left` - Left
+    PatchedStudentGuardianUpdateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        relationship:
+          $ref: '#/components/schemas/RelationshipEnum'
+        is_primary:
+          type: boolean
+        is_emergency_contact:
+          type: boolean
+        contact_preference:
+          oneOf:
+          - $ref: '#/components/schemas/ContactPreferenceEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+    PatchedStudentInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        admission_number:
+          type: string
+          minLength: 1
+          maxLength: 32
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        middle_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        date_of_birth:
+          type:
+          - string
+          - 'null'
+          format: date
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        admission_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        membership_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: 'Only for students who sign in: their membership in this school.'
+        status:
+          $ref: '#/components/schemas/StudentStatusEnum'
+    PatchedSubjectInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
         into a write (mass assignment).
@@ -2022,7 +6888,36 @@ components:
         name:
           type: string
           minLength: 1
-          maxLength: 200
+          maxLength: 100
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        short_name:
+          type: string
+          maxLength: 20
+        description:
+          type: string
+          maxLength: 500
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        department_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
+    PatchedTeacherAssignmentUpdateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        is_class_teacher:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/AssignmentStatusEnum'
     PatchedUserPatchInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -2040,11 +6935,22 @@ components:
       required:
       - codename
       - description
+    PersonRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+      required:
+      - full_name
+      - id
     ReadinessStatus:
       type: object
       properties:
         status:
-          $ref: '#/components/schemas/StatusEnum'
+          $ref: '#/components/schemas/HealthStatusEnum'
         checks:
           type: object
           additionalProperties:
@@ -2058,6 +6964,29 @@ components:
       required:
       - checks
       - status
+    RecordStatusEnum:
+      enum:
+      - active
+      - archived
+      type: string
+      description: |-
+        * `active` - Active
+        * `archived` - Archived
+    Ref:
+      type: object
+      description: A compact reference to a related record (no nesting beyond one
+        level).
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        code:
+          type: string
+      required:
+      - id
+      - name
     RefreshInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -2069,6 +6998,22 @@ components:
           maxLength: 128
       required:
       - refresh
+    RelationshipEnum:
+      enum:
+      - mother
+      - father
+      - guardian
+      - grandparent
+      - sibling
+      - other
+      type: string
+      description: |-
+        * `mother` - Mother
+        * `father` - Father
+        * `guardian` - Legal guardian
+        * `grandparent` - Grandparent
+        * `sibling` - Sibling
+        * `other` - Other
     RoleAssignInRequest:
       type: object
       description: Rejects unknown fields, so a client cannot slip extra attributes
@@ -2216,6 +7161,47 @@ components:
         name:
           type: string
           readOnly: true
+        legal_name:
+          type: string
+          readOnly: true
+          description: Registered name, if different.
+        short_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        website:
+          type: string
+          format: uri
+          readOnly: true
+        address_line1:
+          type: string
+          readOnly: true
+        address_line2:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        state:
+          type: string
+          readOnly: true
+        postal_code:
+          type: string
+          readOnly: true
+        country:
+          type: string
+          readOnly: true
+        timezone:
+          type: string
+          readOnly: true
+        settings:
+          readOnly: true
         is_active:
           type: boolean
           readOnly: true
@@ -2228,12 +7214,25 @@ components:
           format: date-time
           readOnly: true
       required:
+      - address_line1
+      - address_line2
+      - city
       - code
+      - country
       - created_at
+      - email
       - id
       - is_active
+      - legal_name
       - name
+      - phone
+      - postal_code
+      - settings
+      - short_name
+      - state
+      - timezone
       - updated_at
+      - website
     SchoolPublicOut:
       type: object
       properties:
@@ -2267,6 +7266,93 @@ components:
       - code
       - id
       - name
+    SectionCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        academic_year_id:
+          type: string
+          format: uuid
+        grade_id:
+          type: string
+          format: uuid
+        campus_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        capacity:
+          type:
+          - integer
+          - 'null'
+          maximum: 32767
+          minimum: 1
+      required:
+      - academic_year_id
+      - code
+      - grade_id
+      - name
+    SectionOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+          description: For example "A" or "Rose".
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        academic_year:
+          $ref: '#/components/schemas/Ref'
+        grade:
+          $ref: '#/components/schemas/Ref'
+        campus:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        capacity:
+          type:
+          - integer
+          - 'null'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RecordStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - academic_year
+      - campus
+      - capacity
+      - code
+      - created_at
+      - grade
+      - id
+      - name
+      - status
+      - updated_at
     SessionOut:
       type: object
       properties:
@@ -2309,14 +7395,466 @@ components:
       - last_used_at
       - remember
       - user_agent
-    StatusEnum:
+    StaffCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        membership_id:
+          type: string
+          format: uuid
+          description: The person's active membership in this school.
+        employee_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        staff_type:
+          $ref: '#/components/schemas/StaffTypeEnum'
+        designation:
+          type: string
+          maxLength: 100
+        department_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        campus_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        joining_date:
+          type:
+          - string
+          - 'null'
+          format: date
+      required:
+      - employee_id
+      - membership_id
+    StaffOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        membership_id:
+          type: string
+          format: uuid
+          readOnly: true
+        full_name:
+          type: string
+        employee_id:
+          type: string
+          readOnly: true
+        staff_type:
+          allOf:
+          - $ref: '#/components/schemas/StaffTypeEnum'
+          readOnly: true
+        designation:
+          type: string
+          readOnly: true
+        department:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        campus:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        joining_date:
+          type:
+          - string
+          - 'null'
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StaffStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - campus
+      - created_at
+      - department
+      - designation
+      - employee_id
+      - full_name
+      - id
+      - joining_date
+      - membership_id
+      - staff_type
+      - status
+      - updated_at
+    StaffStatusEnum:
       enum:
-      - ok
-      - unavailable
+      - active
+      - on_leave
+      - left
       type: string
       description: |-
-        * `ok` - ok
-        * `unavailable` - unavailable
+        * `active` - Active
+        * `on_leave` - On leave
+        * `left` - Left
+    StaffTypeEnum:
+      enum:
+      - teaching
+      - non_teaching
+      type: string
+      description: |-
+        * `teaching` - Teaching
+        * `non_teaching` - Non-teaching
+    StudentGuardianCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        student_id:
+          type: string
+          format: uuid
+        guardian_id:
+          type: string
+          format: uuid
+        relationship:
+          $ref: '#/components/schemas/RelationshipEnum'
+        is_primary:
+          type: boolean
+          description: Making one primary un-sets the previous one.
+        is_emergency_contact:
+          type: boolean
+        contact_preference:
+          oneOf:
+          - $ref: '#/components/schemas/ContactPreferenceEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+      required:
+      - guardian_id
+      - relationship
+      - student_id
+    StudentGuardianOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          $ref: '#/components/schemas/PersonRef'
+        guardian:
+          $ref: '#/components/schemas/PersonRef'
+        relationship:
+          allOf:
+          - $ref: '#/components/schemas/RelationshipEnum'
+          readOnly: true
+        is_primary:
+          type: boolean
+          readOnly: true
+          default: false
+        is_emergency_contact:
+          type: boolean
+          readOnly: true
+        contact_preference:
+          allOf:
+          - $ref: '#/components/schemas/ContactPreferenceEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - contact_preference
+      - created_at
+      - guardian
+      - id
+      - is_emergency_contact
+      - is_primary
+      - relationship
+      - student
+    StudentInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        admission_number:
+          type: string
+          minLength: 1
+          maxLength: 32
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        middle_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        date_of_birth:
+          type:
+          - string
+          - 'null'
+          format: date
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        admission_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        membership_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: 'Only for students who sign in: their membership in this school.'
+        status:
+          $ref: '#/components/schemas/StudentStatusEnum'
+      required:
+      - admission_number
+      - first_name
+    StudentOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        membership_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          readOnly: true
+        admission_number:
+          type: string
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        middle_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        date_of_birth:
+          type:
+          - string
+          - 'null'
+          format: date
+          readOnly: true
+        gender:
+          allOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          readOnly: true
+        admission_date:
+          type:
+          - string
+          - 'null'
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StudentStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - admission_date
+      - admission_number
+      - created_at
+      - date_of_birth
+      - first_name
+      - full_name
+      - gender
+      - id
+      - last_name
+      - membership_id
+      - middle_name
+      - status
+      - updated_at
+    StudentStatusEnum:
+      enum:
+      - active
+      - inactive
+      - graduated
+      - left
+      type: string
+      description: |-
+        * `active` - Active
+        * `inactive` - Inactive
+        * `graduated` - Graduated
+        * `left` - Left the school
+    SubjectInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[-a-zA-Z0-9_]+$
+        short_name:
+          type: string
+          maxLength: 20
+        description:
+          type: string
+          maxLength: 500
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        department_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        status:
+          $ref: '#/components/schemas/RecordStatusEnum'
+      required:
+      - code
+      - name
+    SubjectOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        short_name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/CategoryEnum'
+          readOnly: true
+        department:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RecordStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category
+      - code
+      - created_at
+      - department
+      - description
+      - id
+      - name
+      - short_name
+      - status
+      - updated_at
+    TeacherAssignmentCreateInRequest:
+      type: object
+      description: Rejects unknown fields, so a client cannot slip extra attributes
+        into a write (mass assignment).
+      properties:
+        staff_id:
+          type: string
+          format: uuid
+        section_id:
+          type: string
+          format: uuid
+          description: The academic year is taken from the section.
+        subject_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Empty only for a class teacher.
+        is_class_teacher:
+          type: boolean
+          default: false
+      required:
+      - section_id
+      - staff_id
+    TeacherAssignmentOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        staff:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        academic_year:
+          $ref: '#/components/schemas/Ref'
+        section:
+          $ref: '#/components/schemas/Ref'
+        subject:
+          oneOf:
+          - $ref: '#/components/schemas/Ref'
+          - type: 'null'
+        is_class_teacher:
+          type: boolean
+          readOnly: true
+          default: false
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AssignmentStatusEnum'
+          readOnly: true
+          default: active
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - academic_year
+      - created_at
+      - id
+      - is_class_teacher
+      - section
+      - staff
+      - status
+      - subject
+      - updated_at
     TokenPairOut:
       type: object
       properties:
