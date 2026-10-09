@@ -19,6 +19,8 @@ api_v1: list[URLPattern | URLResolver] = [
     path("", include("eduflow.tenancy.api.platform_urls")),
     path("", include("eduflow.authz.api.urls")),
     path("", include("eduflow.audit.api.urls")),
+    path("", include("eduflow.academics.api.urls")),
+    path("", include("eduflow.people.api.urls")),
 ]
 
 if settings.API_DOCS_ENABLED:

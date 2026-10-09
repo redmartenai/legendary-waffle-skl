@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     "eduflow.tenancy",
     "eduflow.authz",
     "eduflow.audit",
+    "eduflow.academics",
+    "eduflow.people",
 ]
 
 MIDDLEWARE = [
@@ -205,7 +207,17 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": r"/api/v1",
     "COMPONENT_SPLIT_REQUEST": True,
     "OAS_VERSION": "3.1.0",
-    "ENUM_NAME_OVERRIDES": {"DataScopeEnum": "eduflow.authz.catalog.DataScope"},
+    "ENUM_NAME_OVERRIDES": {
+        "DataScopeEnum": "eduflow.authz.catalog.DataScope",
+        "RecordStatusEnum": "eduflow.academics.models.RecordStatus",
+        "AcademicYearStatusEnum": "eduflow.academics.models.AcademicYearStatus",
+        "StaffStatusEnum": "eduflow.people.models.StaffStatus",
+        "StudentStatusEnum": "eduflow.people.models.StudentStatus",
+        "EnrollmentStatusEnum": "eduflow.people.models.EnrollmentStatus",
+        "EnrollmentEndStatusEnum": ["completed", "withdrawn"],
+        "AssignmentStatusEnum": "eduflow.people.models.AssignmentStatus",
+        "HealthStatusEnum": ["ok", "unavailable"],
+    },
 }
 
 # ----------------------------------------------------------------------------- object storage
