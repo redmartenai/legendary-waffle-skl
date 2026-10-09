@@ -64,6 +64,7 @@ def _run_prod(env_overrides: dict[str, str], *args: str) -> subprocess.Completed
         "DJANGO_ALLOWED_HOSTS": "api.eduflow.example",
         "DATABASE_URL": "postgres://eduflow:a-long-random-db-password@127.0.0.1:5432/eduflow",
         "REDIS_URL": "redis://127.0.0.1:6379/0",
+        "INVITATION_LINK_BASE": "https://app.eduflow.example/invite#token=",
         **env_overrides,
     }
     return subprocess.run(

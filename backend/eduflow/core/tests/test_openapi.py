@@ -99,3 +99,27 @@ def test_phase_3_contract_is_documented(tmp_path):
     assert {"400", "401", "403"} <= set(listing["responses"])
     assert {"401", "403", "404"} <= set(paths["/api/v1/students/{id}"]["get"]["responses"])
     assert "delete" not in paths["/api/v1/students/{id}"]
+
+
+def test_phase_4_invitation_contract_is_documented(tmp_path):
+    out = tmp_path / "openapi.yaml"
+    call_command("spectacular", "--file", str(out), "--validate", "--fail-on-warn")
+    schema = yaml.safe_load(out.read_text(encoding="utf-8"))
+    paths = schema["paths"]
+    for path in (
+        "/api/v1/invitations",
+        "/api/v1/invitations/{id}",
+        "/api/v1/invitations/{id}/resend",
+        "/api/v1/invitations/{id}/revoke",
+        "/api/v1/invitations/preview",
+        "/api/v1/invitations/verification",
+        "/api/v1/invitations/accept",
+    ):
+        assert path in paths
+    invitation = schema["components"]["schemas"]["InvitationOut"]["properties"]
+    assert "recipient_hint" in invitation
+    assert not {"token", "token_digest", "recipient", "code"} & set(invitation)
+    assert (
+        "security" not in paths["/api/v1/invitations/preview"]["post"]
+        or {} in paths["/api/v1/invitations/preview"]["post"]["security"]
+    )

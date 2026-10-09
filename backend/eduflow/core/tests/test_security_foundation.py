@@ -71,6 +71,9 @@ def test_strict_serializer_rejects_unknown_fields():
         ({"RATE_LIMITS_ENABLED": False}, "RATE_LIMITS_ENABLED"),
         ({"DATABASE_RLS_ROLE": ""}, "DATABASE_RLS_ROLE"),
         ({"JWT_SIGNING_KEY": "short"}, "JWT_SIGNING_KEY"),
+        ({"INVITATION_LINK_BASE": "http://app.example/invite#token="}, "INVITATION_LINK_BASE"),
+        ({"EMAIL_BACKEND": "django.core.mail.backends.console.EmailBackend"}, "EMAIL_BACKEND"),
+        ({"EMAIL_BACKEND": "django.core.mail.backends.locmem.EmailBackend"}, "EMAIL_BACKEND"),
     ],
 )
 def test_production_refuses_phase_2_insecure_settings(override, fragment):

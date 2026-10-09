@@ -97,7 +97,7 @@ def test_purge_task_removes_only_expired_records(make_user):
     old = start_session(user, method=AuthMethod.PASSWORD).session
     AuthSession.objects.filter(pk=old.pk).update(expires_at=timezone.now() - timedelta(days=40))
     OtpChallenge.objects.create(
-        phone_hash="x", code_hash="y", expires_at=timezone.now() - timedelta(days=40), max_attempts=5
+        address_hash="x", code_hash="y", expires_at=timezone.now() - timedelta(days=40), max_attempts=5
     )
 
     purge_expired_auth_records.delay().get()

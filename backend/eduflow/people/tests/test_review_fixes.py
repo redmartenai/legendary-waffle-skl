@@ -89,27 +89,55 @@ def test_scoped_write_grants_do_not_authorise_school_wide_creates(world, as_memb
     )
 
 
-def test_nobody_links_their_own_account_to_a_profile(world, as_member):
+def _actor(membership):
+    from eduflow.authz.grants import Actor, compute_grants
+
+    return Actor(
+        user=membership.user,
+        school=membership.school,
+        membership=membership,
+        grants=compute_grants(membership),
+    )
+
+
+def test_student_and_guardian_apis_cannot_link_accounts(world, as_member, make_member):
+    """ADR-025: only an accepted invitation links an account to a student or guardian record."""
     admin = as_member(world.admin)
-    response = admin.post("/api/v1/guardians", {"full_name": "Me", "membership_id": str(world.admin.id)})
-    assert response.status_code == 400
-    assert not Guardian.objects.filter(membership=world.admin).exists()
+    target = make_member(world.school, roles=["parent"])
+    guardian = admin.post("/api/v1/guardians", {"full_name": "G", "membership_id": str(target.id)})
+    student = admin.patch(
+        f"/api/v1/students/{world.other_student.id}", {"membership_id": str(target.id)}, format="json"
+    )
+    assert guardian.status_code == student.status_code == 400
+    assert guardian.json()["error"]["fields"] == {"membership_id": ["Unknown field."]}
+    assert not Guardian.objects.filter(membership=target).exists()
 
 
-def test_linking_accounts_needs_school_wide_member_administration(world, as_member, make_member):
+def test_nobody_links_their_own_account_to_a_profile(world):
+    from rest_framework.exceptions import ValidationError
+
+    from eduflow.people.services import link_guardian_account
+
+    unlinked = Guardian.objects.create(school=world.school, full_name="Unlinked")
+    with pytest.raises(ValidationError):
+        link_guardian_account(_actor(world.admin), unlinked, world.admin)
+    unlinked.refresh_from_db()
+    assert unlinked.membership_id is None
+
+
+def test_linking_accounts_needs_school_wide_member_administration(world, make_member):
+    from rest_framework.exceptions import PermissionDenied
+
+    from eduflow.people.services import link_guardian_account, link_student_account
+
     clerk = make_member(world.school, roles=[])
     _custom_role(world, clerk, {"guardian.manage": ["school"], "student.update": ["school"]})
     target = make_member(world.school, roles=["parent"])
-    client = as_member(clerk)
-    assert (
-        client.post("/api/v1/guardians", {"full_name": "G", "membership_id": str(target.id)}).status_code
-        == 403
-    )
-    assert client.post("/api/v1/guardians", {"full_name": "No account"}).status_code == 201
-    patch = client.patch(
-        f"/api/v1/students/{world.other_student.id}", {"membership_id": str(target.id)}, format="json"
-    )
-    assert patch.status_code == 403
+    unlinked = Guardian.objects.create(school=world.school, full_name="Unlinked")
+    with pytest.raises(PermissionDenied):
+        link_guardian_account(_actor(clerk), unlinked, target)
+    with pytest.raises(PermissionDenied):
+        link_student_account(_actor(clerk), world.other_student, target)
 
 
 # ------------------------------------------------------------------------------------------------ finding 3

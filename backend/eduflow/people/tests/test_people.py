@@ -71,8 +71,7 @@ def test_staff_membership_must_match_school_in_the_database(world, other_world):
 
 
 # ------------------------------------------------------------------------------------------------ students
-def test_create_and_update_student(world, admin, make_member):
-    login = make_member(world.school, roles=["student"])
+def test_create_and_update_student(world, admin):
     response = admin.post(
         "/api/v1/students",
         {
@@ -81,14 +80,13 @@ def test_create_and_update_student(world, admin, make_member):
             "last_name": "Iyer",
             "date_of_birth": "2015-04-01",
             "gender": "female",
-            "membership_id": str(login.id),
         },
         format="json",
     )
     assert response.status_code == 201, response.content
     body = response.json()
     assert body["full_name"] == "Meera Iyer"
-    assert body["membership_id"] == str(login.id)
+    assert body["membership_id"] is None  # linked only by accepting an invitation (ADR-025)
     assert not {"password", "user", "email", "phone"} & set(body)
     updated = admin.patch(f"/api/v1/students/{body['id']}", {"middle_name": "R"}, format="json")
     assert updated.json()["full_name"] == "Meera R Iyer"

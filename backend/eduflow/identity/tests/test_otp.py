@@ -69,7 +69,7 @@ def test_code_is_stored_only_as_hmac(api_client, user):
     row = OtpChallenge.objects.get(pk=challenge_id)
     assert row.code_hash == code_digest(challenge_id, code)
     assert code not in row.code_hash
-    assert PHONE not in row.phone_hash
+    assert PHONE not in row.address_hash
 
 
 def test_code_is_single_use(api_client, user):
