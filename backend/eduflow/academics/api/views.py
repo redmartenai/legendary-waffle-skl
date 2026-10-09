@@ -23,9 +23,12 @@ from ..models import (
     Department,
     Grade,
     RecordStatus,
+    Room,
+    RoomKind,
     Section,
     Subject,
     SubjectCategory,
+    Term,
 )
 from . import serializers as s
 
@@ -223,3 +226,71 @@ class SubjectDetail(_Subject, ResourceDetailView):
 
     def perform_delete(self, obj: Subject) -> None:
         services.delete_subject(obj)
+
+
+# ------------------------------------------------------------------------------------------------ terms
+class _Term(ResourceView):
+    tag = TAG
+    resource = policies.terms
+    read_permission, write_permission = "term.read", "term.manage"
+    output_serializer = s.TermOut
+
+    def base_queryset(self) -> QuerySet[Term]:
+        return Term.objects.select_related("academic_year")
+
+
+@document_resource
+class TermList(_Term, ResourceListView):
+    create_serializer = s.TermCreateIn
+    filters = [Filter("academic_year_id", "academic_year_id", serializers.UUIDField())]
+
+    def perform_create(self, data: dict[str, Any]) -> Term:
+        return services.create_term(self.actor, **data)
+
+
+@document_resource
+class TermDetail(_Term, ResourceDetailView):
+    update_serializer = s.TermUpdateIn
+    allow_delete = True
+
+    def perform_update(self, obj: Term, data: dict[str, Any]) -> Term:
+        return services.update_term(self.actor, obj, **data)
+
+    def perform_delete(self, obj: Term) -> None:
+        services.delete_term(obj)
+
+
+# ------------------------------------------------------------------------------------------------ rooms
+class _Room(ResourceView):
+    tag = TAG
+    resource = policies.rooms
+    read_permission, write_permission = "room.read", "room.manage"
+    output_serializer = s.RoomOut
+
+    def base_queryset(self) -> QuerySet[Room]:
+        return Room.objects.select_related("campus")
+
+
+@document_resource
+class RoomList(_Room, ResourceListView):
+    create_serializer = s.RoomIn
+    filters = [
+        STATUS,
+        Filter("kind", "kind", serializers.ChoiceField(RoomKind.choices)),
+        Filter("campus_id", "campus_id", serializers.UUIDField()),
+    ]
+
+    def perform_create(self, data: dict[str, Any]) -> Room:
+        return services.create_room(self.actor, **data)
+
+
+@document_resource
+class RoomDetail(_Room, ResourceDetailView):
+    update_serializer = s.RoomIn
+    allow_delete = True
+
+    def perform_update(self, obj: Room, data: dict[str, Any]) -> Room:
+        return services.update_room(self.actor, obj, **data)
+
+    def perform_delete(self, obj: Room) -> None:
+        services.delete_room(obj)

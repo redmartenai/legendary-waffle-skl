@@ -20,8 +20,10 @@ from .models import (
     Department,
     Grade,
     RecordStatus,
+    Room,
     Section,
     Subject,
+    Term,
 )
 
 # Sent inside the closing transaction, before the year is saved as closed. Modules holding year-bound records
@@ -249,3 +251,78 @@ def delete_section(section: Section) -> None:
     if section.academic_year.status == AcademicYearStatus.CLOSED:
         raise Conflict("Sections of a closed academic year are history and cannot be deleted.")
     _delete(section)
+
+
+# --------------------------------------------------------------------------------------------- terms
+_TERM_CONFLICT = "This overlaps another term of the academic year, or the name or code is taken."
+
+
+def _check_term_dates(year: AcademicYear, start: Any, end: Any, exclude: Any = None) -> None:
+    if start >= end:
+        raise ValidationError({"end_date": ["The end date must be after the start date."]})
+    if start < year.start_date or end > year.end_date:
+        raise ValidationError({"start_date": ["A term must lie within its academic year."]})
+    overlapping = Term.objects.filter(academic_year=year, start_date__lte=end, end_date__gte=start)
+    if exclude is not None:
+        overlapping = overlapping.exclude(pk=exclude)
+    if overlapping.exists():
+        raise ValidationError({"start_date": ["This overlaps another term of the academic year."]})
+
+
+@transaction.atomic
+def create_term(actor: Actor, **data: Any) -> Term:
+    year = _open_year(actor, data.pop("academic_year_id"))
+    _check_term_dates(year, data["start_date"], data["end_date"])
+    term = domain.save(Term(school=actor.school, academic_year=year, **data), conflict=_TERM_CONFLICT)
+    domain.record("academics.term.created", term, academic_year=str(year.pk))
+    return term
+
+
+@transaction.atomic
+def update_term(actor: Actor, term: Term, **data: Any) -> Term:
+    if term.academic_year.status == AcademicYearStatus.CLOSED:
+        raise Conflict("Terms of a closed academic year cannot be changed.")
+    if "start_date" in data or "end_date" in data:
+        _check_term_dates(
+            term.academic_year,
+            data.get("start_date", term.start_date),
+            data.get("end_date", term.end_date),
+            exclude=term.pk,
+        )
+    changed = domain.apply_changes(term, data)
+    if changed:
+        domain.save(term, conflict=_TERM_CONFLICT, update_fields=changed)
+        domain.record("academics.term.updated", term, fields=changed)
+    return term
+
+
+@transaction.atomic
+def delete_term(term: Term) -> None:
+    if term.academic_year.status == AcademicYearStatus.CLOSED:
+        raise Conflict("Terms of a closed academic year are history and cannot be deleted.")
+    _delete(term)
+
+
+# --------------------------------------------------------------------------------------------- rooms
+def _room_refs(actor: Actor, data: dict[str, Any]) -> dict[str, Any]:
+    if "campus_id" in data:
+        campus_id = data.pop("campus_id")
+        data["campus"] = (
+            _active(domain.resolve(Campus, actor.school, campus_id, "campus_id"), "campus_id")
+            if campus_id
+            else None
+        )
+    return data
+
+
+@transaction.atomic
+def create_room(actor: Actor, **data: Any) -> Room:
+    return _create(actor, Room, _room_refs(actor, data))  # type: ignore[no-any-return]
+
+
+@transaction.atomic
+def update_room(actor: Actor, room: Room, **data: Any) -> Room:
+    return _update(room, _room_refs(actor, data))  # type: ignore[no-any-return]
+
+
+delete_room = transaction.atomic(_delete)

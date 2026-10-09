@@ -13,9 +13,12 @@ from ..models import (
     Department,
     Grade,
     RecordStatus,
+    Room,
+    RoomKind,
     Section,
     Subject,
     SubjectCategory,
+    Term,
 )
 
 ADDRESS_FIELDS = ("address_line1", "address_line2", "city", "state", "postal_code", "country")
@@ -175,4 +178,50 @@ class SubjectIn(StrictSerializer):
     description = serializers.CharField(max_length=500, required=False, allow_blank=True)
     category = serializers.ChoiceField(SubjectCategory.choices, required=False)
     department_id = serializers.UUIDField(required=False, allow_null=True)
+    status = serializers.ChoiceField(RecordStatus.choices, required=False)
+
+
+# ------------------------------------------------------------------------------------------------ term
+class TermOut(serializers.ModelSerializer[Term]):
+    academic_year = Ref()
+
+    class Meta:
+        model = Term
+        fields = ("id", "name", "code", "academic_year", "start_date", "end_date", "created_at", "updated_at")
+        read_only_fields = fields
+
+
+class TermCreateIn(StrictSerializer):
+    academic_year_id = serializers.UUIDField()
+    name = serializers.CharField(max_length=50)
+    code = serializers.SlugField(max_length=32)
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+
+
+class TermUpdateIn(StrictSerializer):
+    """A term's academic year is fixed."""
+
+    name = serializers.CharField(max_length=50, required=False)
+    code = serializers.SlugField(max_length=32, required=False)
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+
+
+# ------------------------------------------------------------------------------------------------ room
+class RoomOut(serializers.ModelSerializer[Room]):
+    campus = Ref(allow_null=True)
+
+    class Meta:
+        model = Room
+        fields = ("id", "name", "code", "kind", "campus", "capacity", "status", "created_at", "updated_at")
+        read_only_fields = fields
+
+
+class RoomIn(StrictSerializer):
+    name = serializers.CharField(max_length=100)
+    code = serializers.SlugField(max_length=32)
+    kind = serializers.ChoiceField(RoomKind.choices, required=False)
+    campus_id = serializers.UUIDField(required=False, allow_null=True)
+    capacity = serializers.IntegerField(min_value=1, max_value=32767, required=False, allow_null=True)
     status = serializers.ChoiceField(RecordStatus.choices, required=False)

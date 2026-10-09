@@ -1,13 +1,14 @@
-"""Academic structure: campuses, academic years, departments, grades, sections and subjects.
+"""Academic structure: campuses, academic years, terms, departments, grades, sections, subjects and rooms.
 
-Every table is school-owned (``TenantModel``), protected by RLS (academics migration 0002), and carries a
-``UNIQUE (id, school_id)`` target so child rows can use composite foreign keys that keep the school consistent
-in the database itself (docs/architecture/phase-3.md).
+Every table is school-owned (``TenantModel``), protected by RLS (academics migrations 0002 and 0004), and
+carries a ``UNIQUE (id, school_id)`` target so child rows can use composite foreign keys that keep the school
+consistent in the database itself (docs/architecture/phase-3.md).
 
 Hierarchy (ADR-022)::
 
     School ── Grade (academic level, stable across years, e.g. "Grade 5")
           └── AcademicYear ── Section (Grade x Year, e.g. "5-A 2026-27")
+                          └── Term (Phase 5)
 """
 
 from __future__ import annotations
@@ -249,6 +250,93 @@ class Subject(TenantModel):
             models.UniqueConstraint(fields=["school", "code"], name="academics_subject_code_uniq"),
             _unique_name("subject", "school"),
             _same_school_target("subject"),
+        ]
+
+    def __str__(self) -> str:
+        return self.code
+
+
+class Term(TenantModel):
+    """A part of an academic year (for example "Term 1"). Terms of one year never overlap.
+
+    Timetables may be tied to a term (Phase 5); assessment will use them for reporting periods.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid7, editable=False)
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.PROTECT, related_name="terms")
+    name = models.CharField(max_length=50)
+    code = models.SlugField(max_length=32)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantQuerySet.as_manager()
+
+    class Meta:
+        db_table = "academics_term"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(start_date__lt=F("end_date")), name="academics_term_dates_check"
+            ),
+            models.UniqueConstraint(fields=["academic_year", "code"], name="academics_term_code_uniq"),
+            models.UniqueConstraint("academic_year", Lower("name"), name="academics_term_name_uniq"),
+            ExclusionConstraint(
+                name="academics_term_no_overlap",
+                expressions=[
+                    ("academic_year", RangeOperators.EQUAL),
+                    (DateRange("start_date", "end_date", models.Value("[]")), RangeOperators.OVERLAPS),
+                ],
+            ),
+            _same_school_target("term"),
+            # Target of the composite foreign key that keeps a timetable's term in the timetable's year.
+            models.UniqueConstraint(
+                fields=["id", "academic_year", "school"], name="academics_term_year_key_uniq"
+            ),
+        ]
+        indexes = [models.Index(fields=["school", "academic_year", "start_date"], name="academics_term_idx")]
+
+    def __str__(self) -> str:
+        return self.code
+
+
+class RoomKind(models.TextChoices):
+    CLASSROOM = "classroom", "Classroom"
+    LABORATORY = "laboratory", "Laboratory"
+    LIBRARY = "library", "Library"
+    HALL = "hall", "Hall"
+    SPORTS = "sports", "Sports"
+    OTHER = "other", "Other"
+
+
+class Room(TenantModel):
+    """A teaching space. Timetable slots may book one; a room is never double-booked (Phase 5)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid7, editable=False)
+    campus = models.ForeignKey(Campus, on_delete=models.PROTECT, null=True, blank=True, related_name="rooms")
+    name = models.CharField(max_length=100)
+    code = models.SlugField(max_length=32)
+    kind = models.CharField(max_length=16, choices=RoomKind.choices, default=RoomKind.CLASSROOM)
+    capacity = models.PositiveSmallIntegerField(null=True, blank=True)
+    status = models.CharField(max_length=16, choices=RecordStatus.choices, default=RecordStatus.ACTIVE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantQuerySet.as_manager()
+
+    class Meta:
+        db_table = "academics_room"
+        constraints = [
+            models.UniqueConstraint(fields=["school", "code"], name="academics_room_code_uniq"),
+            # "Room 101" may exist on two campuses, but only once per campus (or once without a campus).
+            models.UniqueConstraint(
+                "school", "campus", Lower("name"), name="academics_room_name_uniq", nulls_distinct=False
+            ),
+            models.CheckConstraint(
+                condition=Q(capacity__isnull=True) | Q(capacity__gt=0),
+                name="academics_room_capacity_positive_check",
+            ),
+            _same_school_target("room"),
         ]
 
     def __str__(self) -> str:

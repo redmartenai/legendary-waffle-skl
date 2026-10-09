@@ -16,4 +16,8 @@ urlpatterns = [
     path("sections/<uuid:pk>", views.SectionDetail.as_view(), name="section-detail"),
     path("subjects", views.SubjectList.as_view(), name="subject-list"),
     path("subjects/<uuid:pk>", views.SubjectDetail.as_view(), name="subject-detail"),
+    path("terms", views.TermList.as_view(), name="term-list"),
+    path("terms/<uuid:pk>", views.TermDetail.as_view(), name="term-detail"),
+    path("rooms", views.RoomList.as_view(), name="room-list"),
+    path("rooms/<uuid:pk>", views.RoomDetail.as_view(), name="room-detail"),
 ]
