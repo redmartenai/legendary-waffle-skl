@@ -23,7 +23,7 @@ from eduflow.identity.models import User
 
 from .. import services
 from ..models import School
-from .serializers import SchoolOut
+from .serializers import SchoolOut, SchoolUpdateIn
 
 TAG = ["platform"]
 
@@ -41,8 +41,9 @@ class SchoolCreateIn(StrictSerializer):
     admin = AdminPersonIn(required=False, help_text="The first school admin. Optional.")
 
 
-class SchoolPatchIn(StrictSerializer):
-    name = serializers.CharField(max_length=200, required=False)
+class SchoolPatchIn(SchoolUpdateIn):
+    """Platform staff may edit the full profile and activate or deactivate the school."""
+
     is_active = serializers.BooleanField(required=False)
 
 

@@ -6,9 +6,11 @@ policy. ``Membership`` is school-owned and is protected by RLS (tenancy migratio
 
 from __future__ import annotations
 
+import zoneinfo
 from typing import Any, TypeVar
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from eduflow.core.ids import uuid7
@@ -34,12 +36,39 @@ class TenantModel(models.Model):
         abstract = True
 
 
-class School(models.Model):
+def validate_timezone(value: str) -> None:
+    if value not in zoneinfo.available_timezones():
+        raise ValidationError("Use an IANA time zone name, e.g. Asia/Kolkata.")
+
+
+class Address(models.Model):
+    """Postal address fields shared by schools and campuses. ``country`` is an ISO 3166-1 alpha-2 code."""
+
+    address_line1 = models.CharField(max_length=200, blank=True)
+    address_line2 = models.CharField(max_length=200, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=100, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    country = models.CharField(max_length=2, blank=True, default="IN")
+
+    class Meta:
+        abstract = True
+
+
+class School(Address):
     id = models.UUIDField(primary_key=True, default=uuid7, editable=False)
     code = models.SlugField(
         max_length=32, unique=True, help_text="Short public code used to find the school."
     )
     name = models.CharField(max_length=200)
+    legal_name = models.CharField(max_length=200, blank=True, help_text="Registered name, if different.")
+    short_name = models.CharField(max_length=50, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=32, blank=True)
+    website = models.URLField(blank=True)
+    timezone = models.CharField(max_length=64, default="Asia/Kolkata", validators=[validate_timezone])
+    # School-level preferences (e.g. naming conventions). Never credentials or personal data.
+    settings = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
     # Bumped whenever roles, role permissions or role assignments change, so cached permission sets for
     # this school become stale at once (eduflow.authz.grants).
