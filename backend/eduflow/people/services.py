@@ -46,24 +46,28 @@ from .models import (
 
 
 # --------------------------------------------------------------------------------------------- helpers
-def _membership(actor: Actor, membership_id: Any, *, taken_by: str) -> Membership | None:
-    """Resolve a membership to attach to a profile.
+def _check_linkable(actor: Actor, membership: Membership, *, taken_by: str) -> None:
+    """May ``actor`` make ``membership`` the account behind a staff, student or guardian profile?
 
-    Attaching a membership decides whose account *is* this student, guardian or staff member, which drives
-    the ``self`` and ``child`` data scopes. So it needs school-wide member administration (``user.update``),
-    and nobody can attach their own membership (that would let them grant themselves a child or self scope).
+    Attaching a membership decides whose account *is* this person, which drives the ``self`` and ``child``
+    data scopes. So it needs school-wide member administration (``user.update``), and nobody can attach their
+    own membership (that would let them grant themselves a child or self scope).
     """
-    if membership_id is None:
-        return None
     if DataScope.SCHOOL not in actor.scopes("user.update"):
         raise PermissionDenied("Linking an account to a profile needs school-wide member administration.")
-    membership = domain.resolve(Membership, actor.school, membership_id, "membership_id", label="membership")
+    if membership.school_id != actor.school.pk:
+        raise ValidationError({"membership_id": ["Unknown membership."]})
     if membership.pk == actor.membership.pk:
         raise ValidationError({"membership_id": ["You cannot link your own account to a profile."]})
     if not membership.is_active:
         raise ValidationError({"membership_id": ["This membership is not active."]})
     if hasattr(membership, taken_by):
         raise ValidationError({"membership_id": ["This member already has such a profile."]})
+
+
+def _membership(actor: Actor, membership_id: Any, *, taken_by: str) -> Membership:
+    membership = domain.resolve(Membership, actor.school, membership_id, "membership_id", label="membership")
+    _check_linkable(actor, membership, taken_by=taken_by)
     return membership
 
 
@@ -151,23 +155,15 @@ _STUDENT_CONFLICT = "That admission number is already in use in this school."
 
 
 @transaction.atomic
-def create_student(actor: Actor, *, membership_id: Any = None, **data: Any) -> Student:
-    membership = _membership(actor, membership_id, taken_by="student_profile")
-    student = domain.save(
-        Student(school=actor.school, membership=membership, **data), conflict=_STUDENT_CONFLICT
-    )
+def create_student(actor: Actor, **data: Any) -> Student:
+    """A student record. The student's own account is linked only by accepting an invitation (ADR-025)."""
+    student = domain.save(Student(school=actor.school, **data), conflict=_STUDENT_CONFLICT)
     domain.record("people.student.created", student)
     return student
 
 
 @transaction.atomic
 def update_student(actor: Actor, student: Student, **data: Any) -> Student:
-    if "membership_id" in data:
-        membership_id = data.pop("membership_id")
-        if membership_id is None:
-            data["membership"] = None
-        elif student.membership_id != membership_id:
-            data["membership"] = _membership(actor, membership_id, taken_by="student_profile")
     updated: Student = _update(student, data, conflict=_STUDENT_CONFLICT, action="people.student.updated")
     if updated.status != StudentStatus.ACTIVE:
         # A student who is no longer active leaves their section: teachers lose access, the seat frees up.
@@ -186,26 +182,47 @@ def update_student(actor: Actor, student: Student, **data: Any) -> Student:
 
 # --------------------------------------------------------------------------------------------- guardians
 @transaction.atomic
-def create_guardian(actor: Actor, *, membership_id: Any = None, **data: Any) -> Guardian:
-    membership = _membership(actor, membership_id, taken_by="guardian_profile")
+def create_guardian(actor: Actor, **data: Any) -> Guardian:
+    """A guardian record. The guardian's own account is linked only by accepting an invitation (ADR-025)."""
     _normalise_phone(data)
-    guardian = domain.save(
-        Guardian(school=actor.school, membership=membership, **data), conflict="Duplicate."
-    )
+    guardian = domain.save(Guardian(school=actor.school, **data), conflict="Duplicate.")
     domain.record("people.guardian.created", guardian)
     return guardian
 
 
 @transaction.atomic
 def update_guardian(actor: Actor, guardian: Guardian, **data: Any) -> Guardian:
-    if "membership_id" in data:
-        membership_id = data.pop("membership_id")
-        if membership_id is None:
-            data["membership"] = None
-        elif guardian.membership_id != membership_id:
-            data["membership"] = _membership(actor, membership_id, taken_by="guardian_profile")
     _normalise_phone(data)
     return _update(guardian, data, conflict="Duplicate.", action="people.guardian.updated")  # type: ignore[no-any-return]
+
+
+# --------------------------------------------------------------------------------------------- account links
+# Called by invitation acceptance with the *inviter* as actor, after the recipient proved control of the
+# invited address. These are the only ways a student or guardian record gets an account (ADR-025).
+@transaction.atomic
+def link_student_account(actor: Actor, student: Student, membership: Membership) -> Student:
+    student = Student.objects.select_for_update().get(pk=student.pk, school_id=actor.school.pk)
+    if student.membership_id is not None:
+        raise Conflict("This student record is already linked to an account.")
+    if student.status != StudentStatus.ACTIVE:
+        raise Conflict("This student record is not active.")
+    _check_linkable(actor, membership, taken_by="student_profile")
+    student.membership = membership
+    student.save(update_fields=["membership", "updated_at"])
+    domain.record("people.student.account_linked", student, membership=str(membership.pk))
+    return student
+
+
+@transaction.atomic
+def link_guardian_account(actor: Actor, guardian: Guardian, membership: Membership) -> Guardian:
+    guardian = Guardian.objects.select_for_update().get(pk=guardian.pk, school_id=actor.school.pk)
+    if guardian.membership_id is not None:
+        raise Conflict("This guardian record is already linked to an account.")
+    _check_linkable(actor, membership, taken_by="guardian_profile")
+    guardian.membership = membership
+    guardian.save(update_fields=["membership", "updated_at"])
+    domain.record("people.guardian.account_linked", guardian, membership=str(membership.pk))
+    return guardian
 
 
 def _clear_other_primary(link: StudentGuardian) -> None:

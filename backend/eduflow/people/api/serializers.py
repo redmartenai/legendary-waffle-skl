@@ -124,11 +124,7 @@ class StudentIn(StrictSerializer):
     date_of_birth = serializers.DateField(required=False, allow_null=True)
     gender = serializers.ChoiceField(Gender.choices, required=False, allow_blank=True)
     admission_date = serializers.DateField(required=False, allow_null=True)
-    membership_id = serializers.UUIDField(
-        required=False,
-        allow_null=True,
-        help_text="Only for students who sign in: their membership in this school.",
-    )
+    # No membership_id: a student's own account is linked only by accepting an invitation (ADR-025).
     status = serializers.ChoiceField(StudentStatus.choices, required=False)
 
 
@@ -154,11 +150,7 @@ class GuardianIn(StrictSerializer):
     phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)
     occupation = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    membership_id = serializers.UUIDField(
-        required=False,
-        allow_null=True,
-        help_text="Only for guardians who sign in: their membership in this school.",
-    )
+    # No membership_id: a guardian's own account is linked only by accepting an invitation (ADR-025).
 
 
 class StudentGuardianOut(serializers.ModelSerializer[StudentGuardian]):
