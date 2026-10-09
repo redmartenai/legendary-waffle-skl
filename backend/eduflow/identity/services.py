@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from eduflow.audit import services as audit
 from eduflow.audit.models import Outcome
@@ -90,6 +92,20 @@ def otp_login(user: User) -> tokens.IssuedTokens:
     return issued
 
 
+def invitation_login(user: User) -> tokens.IssuedTokens:
+    """Sign in a person who just created their account by accepting an invitation (code already verified)."""
+    issued = tokens.start_session(user, method=AuthMethod.INVITATION)
+    audit.record(
+        "auth.login",
+        actor_id=user.pk,
+        school_id=None,
+        target_type="auth_session",
+        target_id=issued.session.id,
+        metadata={"method": AuthMethod.INVITATION},
+    )
+    return issued
+
+
 def logout(user: User, session: AuthSession) -> None:
     tokens.revoke_session(session, RevokeReason.LOGOUT)
     audit.record(
@@ -114,9 +130,18 @@ def revoke_own_session(user: User, session: AuthSession) -> None:
     )
 
 
+FIRST_PASSWORD_WINDOW = timedelta(minutes=15)
+
+
 def change_password(user: User, current: str, new: str, *, keep: AuthSession | None) -> None:
     """Every other session is signed out, so a password change evicts anyone holding a stolen token."""
-    if user.has_usable_password() and not user.check_password(current):
+    if not user.has_usable_password():
+        # A first password needs no current one, so it must come from a fresh sign-in (OTP or invitation),
+        # not from any access token that happens to be valid.
+        fresh = keep is not None and keep.created_at > timezone.now() - FIRST_PASSWORD_WINDOW
+        if not fresh:
+            raise PermissionDenied("Sign in again with a one-time code to set your first password.")
+    elif not user.check_password(current):
         audit.record("identity.password.change", outcome=Outcome.FAILURE, actor_id=user.pk, school_id=None)
         raise InvalidCredentials()
     check_password_strength(new, user, field="new_password")

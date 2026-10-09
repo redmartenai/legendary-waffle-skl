@@ -30,7 +30,7 @@ from . import serializers as s
 AUTH_TAG = ["auth"]
 
 
-def _session_payload(issued: tokens.IssuedTokens) -> dict[str, Any]:
+def session_payload(issued: tokens.IssuedTokens) -> dict[str, Any]:
     user = issued.session.user
     if db_context.current() is not None:
         db_context.update(user_id=user.pk)  # so RLS lets the new user read their own memberships
@@ -72,7 +72,7 @@ class PasswordLoginView(PublicAPIView):
             body.validated_data["password"],
             remember=body.validated_data["remember"],
         )
-        return Response(_session_payload(issued))
+        return Response(session_payload(issued))
 
 
 class OtpRequestView(PublicAPIView):
@@ -118,7 +118,7 @@ class OtpVerifyView(PublicAPIView):
         body = s.OtpVerifyIn(data=request.data)
         body.is_valid(raise_exception=True)
         user = otp.verify_code(str(body.validated_data["challenge_id"]), body.validated_data["code"])
-        return Response(_session_payload(services.otp_login(user)))
+        return Response(session_payload(services.otp_login(user)))
 
 
 class TokenRefreshView(PublicAPIView):

@@ -160,3 +160,18 @@ class SchoolLookupIpThrottle(IpThrottle):
 
 class MemberCreateUserThrottle(UserThrottle):
     scope = "member_create_user"
+
+
+class InvitationManageUserThrottle(UserThrottle):
+    scope = "invitation_manage_user"
+
+
+class InvitationIpThrottle(IpThrottle):
+    scope = "invitation_ip"
+
+
+class InvitationTokenThrottle(BodyFieldThrottle):
+    """Per invitation secret (hashed), so one link cannot be hammered from many IPs."""
+
+    scope = "invitation_token"
+    field = "token"

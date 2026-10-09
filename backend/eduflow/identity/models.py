@@ -102,6 +102,7 @@ class User(AbstractBaseUser):
 class AuthMethod(models.TextChoices):
     PASSWORD = "password", "Password"
     OTP = "otp", "One-time code"
+    INVITATION = "invitation", "Accepted an invitation (one-time code)"
 
 
 class RevokeReason(models.TextChoices):
@@ -173,19 +174,25 @@ class RefreshToken(models.Model):
 
 class OtpPurpose(models.TextChoices):
     LOGIN = "login", "Sign in"
+    INVITATION = "invitation", "Accept an invitation"
 
 
 class OtpChallenge(models.Model):
-    """A one-time code sent to a phone. Neither the code nor the phone number is stored.
+    """A one-time code sent to a phone or email address. Neither the code nor the address is stored.
 
-    ``code_hash`` is an HMAC of the challenge ID and the code, and ``phone_hash`` an HMAC of the phone number
-    (used for cooldowns). Challenges are also created for numbers with no account, so the request endpoint
-    cannot be used to discover which numbers are registered; such a challenge can never be verified.
+    ``code_hash`` is an HMAC of the challenge ID and the code, and ``address_hash`` an HMAC of the channel and
+    address (used for cooldowns). A challenge is bound to its ``purpose`` and, for invitations, to the
+    invitation it verifies (``subject_id``): a code issued for one purpose or subject never verifies another.
+    Sign-in challenges are also created for numbers with no account, so the request endpoint cannot be used to
+    discover which numbers are registered; such a challenge can never be verified.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid7, editable=False)
     purpose = models.CharField(max_length=16, choices=OtpPurpose.choices, default=OtpPurpose.LOGIN)
-    phone_hash = models.CharField(max_length=64)
+    address_hash = models.CharField(max_length=64)
+    subject_id = models.UUIDField(
+        null=True, blank=True, help_text="The invitation an invitation code verifies."
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     code_hash = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -200,7 +207,7 @@ class OtpChallenge(models.Model):
         db_table = "identity_otp_challenge"
         indexes = [
             # Cooldown and "invalidate previous challenges" lookups.
-            models.Index(fields=["phone_hash", "created_at"], name="identity_otp_phone_idx"),
+            models.Index(fields=["address_hash", "created_at"], name="identity_otp_address_idx"),
         ]
         constraints = [
             models.CheckConstraint(

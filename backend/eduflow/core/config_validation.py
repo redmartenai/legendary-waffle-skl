@@ -55,6 +55,19 @@ def production_problems(settings: Mapping[str, Any]) -> list[str]:
     if provider.endswith((".ConsoleSmsProvider", ".MemorySmsProvider")):
         problems.append("OTP_SMS_PROVIDER must not be a development or test provider in production.")
 
+    email_backend = str(settings.get("EMAIL_BACKEND") or "")
+    if email_backend.endswith(
+        ("console.EmailBackend", "locmem.EmailBackend", "filebased.EmailBackend", "dummy.EmailBackend")
+    ):
+        problems.append("EMAIL_BACKEND must not be a development or test backend in production.")
+
+    link_base = str(settings.get("INVITATION_LINK_BASE") or "")
+    if "INVITATION_LINK_BASE" in settings and not (link_base.startswith("https://") and "#" in link_base):
+        problems.append(
+            "INVITATION_LINK_BASE must be an https:// URL that puts the secret after '#' "
+            "(kept out of server logs)."
+        )
+
     if settings.get("RATE_LIMITS_ENABLED") is False:
         problems.append("RATE_LIMITS_ENABLED must be true in production.")
 

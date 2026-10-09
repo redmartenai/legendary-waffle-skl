@@ -57,6 +57,23 @@ class InvalidRefreshToken(APIException):
     default_detail = "Please sign in again."
 
 
+class InvalidInvitation(APIException):
+    """Unknown, expired, revoked or already accepted: recipients cannot tell which."""
+
+    status_code = status.HTTP_404_NOT_FOUND
+    default_code = "invitation_invalid"
+    default_detail = "This invitation is no longer valid. Ask the school to send a new one."
+
+
+class AccountExists(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_code = "account_exists"
+    default_detail = (
+        "An account already uses this email address or mobile number. "
+        "Sign in to it, then accept the invitation."
+    )
+
+
 class PasswordChangeRequired(APIException):
     status_code = status.HTTP_403_FORBIDDEN
     default_code = "password_change_required"
@@ -96,8 +113,9 @@ _ERROR_DESCRIPTIONS = {
     400: "`validation_error` (details in `fields`), `parse_error` or `tenant_required`",
     401: "`not_authenticated`: missing, invalid, expired or revoked credentials",
     403: "`permission_denied`, `tenant_forbidden` or `password_change_required`",
-    404: "`not_found`: does not exist, or is outside the caller's school or data scope (indistinguishable)",
-    409: "`conflict`",
+    404: "`not_found`: does not exist, or is outside the caller's school or data scope (indistinguishable); "
+    "`invitation_invalid` on invitation recipient endpoints",
+    409: "`conflict`, or `account_exists` when accepting an invitation",
     429: "`rate_limited`: see `retry_after_seconds` and the `Retry-After` header",
     503: "`service_unavailable`",
 }
