@@ -333,3 +333,15 @@ def test_schools_cannot_set_passwords_on_new_accounts(school, admin):
     user = User.objects.get(phone="+919822222222")
     assert not user.has_usable_password()
     assert user.phone_verified_at is None
+
+
+def test_permission_checks_survive_a_cache_outage(school, admin, monkeypatch):
+    from django.core.cache import cache
+
+    def broken(*args, **kwargs):
+        raise ConnectionError("redis down")
+
+    _, client = admin
+    monkeypatch.setattr(cache, "get", broken)
+    monkeypatch.setattr(cache, "set", broken)
+    assert client.get("/api/v1/roles").status_code == 200

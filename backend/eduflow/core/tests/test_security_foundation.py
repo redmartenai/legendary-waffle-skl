@@ -85,3 +85,13 @@ def test_production_accepts_a_real_sms_provider():
         )
         == []
     )
+
+
+def test_uuid7_keeps_creation_order_within_one_millisecond(monkeypatch):
+    import time
+
+    frozen = time.time_ns()
+    monkeypatch.setattr(time, "time_ns", lambda: frozen)
+    ids = [uuid7() for _ in range(500)]
+    assert ids == sorted(ids)
+    assert len(set(ids)) == 500

@@ -62,3 +62,40 @@ def test_phase_2_contract_is_documented(tmp_path):
     assert {"bearerAuth": []} in roles["security"]
     assert any(p["name"] == "X-School-Id" and p["in"] == "header" for p in roles["parameters"])
     assert {"401", "403"} <= set(roles["responses"])
+
+
+PHASE_3_RESOURCES = [
+    "campuses",
+    "academic-years",
+    "departments",
+    "grades",
+    "sections",
+    "subjects",
+    "staff",
+    "students",
+    "guardians",
+    "student-guardians",
+    "enrollments",
+    "teacher-assignments",
+]
+
+
+def test_phase_3_contract_is_documented(tmp_path):
+    out = tmp_path / "openapi.yaml"
+    call_command("spectacular", "--file", str(out), "--validate", "--fail-on-warn")
+    schema = yaml.safe_load(out.read_text(encoding="utf-8"))
+    paths = schema["paths"]
+    for resource in PHASE_3_RESOURCES:
+        assert f"/api/v1/{resource}" in paths
+        assert f"/api/v1/{resource}/{{id}}" in paths
+    assert "/api/v1/enrollments/{id}/end" in paths
+    assert "/api/v1/enrollments/{id}/transfer" in paths
+
+    listing = paths["/api/v1/sections"]["get"]
+    names = {p["name"] for p in listing["parameters"]}
+    assert {"X-School-Id", "academic_year_id", "grade_id", "status", "cursor", "page_size"} <= names
+    page = listing["responses"]["200"]["content"]["application/json"]["schema"]
+    assert page["$ref"].endswith("PaginatedSectionList")
+    assert {"400", "401", "403"} <= set(listing["responses"])
+    assert {"401", "403", "404"} <= set(paths["/api/v1/students/{id}"]["get"]["responses"])
+    assert "delete" not in paths["/api/v1/students/{id}"]
