@@ -22,4 +22,4 @@ A teacher assignment says **who teaches what to which section, in which year**, 
   - `section`: co-teachers
   - `child`: a parent's children's teachers
 - Permissions: `teacher_assignment.read`, `teacher_assignment.manage`.
-- Timetable scheduling comes later. Its slots will reference these assignments.
+- Timetable lesson slots reference these assignments, which give them their teacher and subject ([timetable.md](timetable.md)). An assignment used by a slot cannot be deleted (`409`); when it ends, the slot shows no teacher until it is reassigned.

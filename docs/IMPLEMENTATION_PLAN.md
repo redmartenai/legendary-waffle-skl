@@ -211,3 +211,16 @@ Implemented on branch `phase-4/invitations-identity-lifecycle`, from Phase 3 com
 | Email delivery | Phase 9 notifications | A minimal `identity.delivery` boundary (Django email backend, disabled by default) | Invitations need it; the outbox follows in Phase 9 |
 | Linking accounts to students and guardians | Admin sets `membership_id` (Phase 3) | Only by accepting a verified invitation (ADR-025) | A direct link could give a stranger a child's data |
 | Role-specific screens | — | Backend authorization only; no frontend changes | Client work starts with the MVP slice (Phase 6) |
+
+## 9. Phase 5 status (2026-10-09)
+
+Implemented on branch `phase-5/academic-engine`, from Phase 4 commit `5e45a57`. The design is in [architecture/phase-5.md](architecture/phase-5.md), ADR-026 and ADR-027.
+
+| Item | Plan | Actual | Reason |
+|---|---|---|---|
+| Term, Room | Phase 3 (deferred) | Built in `academics` | Needed by timetables |
+| TimetableSlot | section x weekday x period → subject, teacher, room | → teacher **assignment** (gives teacher and subject), room; or a named activity | A slot can never name a teacher who does not teach that subject to that section |
+| Clash constraints | Database and service | Unique constraints within a timetable; exclusion constraints by time and date across published timetables | Different bell times per wing |
+| Lesson | Lesson | A recorded occurrence of a slot (held or cancelled, topic) | Attendance (Phase 6) will attach to it |
+| Substitutions, holidays | — | Not built | Need the school calendar and attendance |
+| Role-specific screens | — | Backend APIs only; no frontend changes | Client work starts in Phase 6 |

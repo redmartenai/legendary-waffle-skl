@@ -15,6 +15,7 @@
 - A **closed** year is read-only (`409`). No sections, enrollments or teacher assignments can be added to it.
 - Setting `is_current: true` on one year un-sets the previous current year in the same transaction.
 - **Deletion:** only `planned` years with nothing attached. Active and closed years are history and are kept (`409`).
+- A year is divided into non-overlapping **terms** ([terms-and-rooms.md](terms-and-rooms.md)).
 - Filters: `status`, `is_current`.
 - Permissions: `academic_year.read` (every role, school-wide; no personal data), `academic_year.manage`.
 - Audit: `academics.academic_year.created|updated|deleted`; status changes are included in `metadata.status`.
