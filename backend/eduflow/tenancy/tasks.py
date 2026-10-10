@@ -26,7 +26,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from celery import Task
+from celery import Task, shared_task
 
 from eduflow.core import db_context
 from eduflow.core.celery_context import SCHOOL_HEADER
@@ -92,3 +92,21 @@ class TenantTask(Task):  # type: ignore[type-arg]
         # The same context in a worker and in eager mode: the school only, never the enqueuing user.
         with db_context.scoped(db_context.DbContext(school_id=school_id)):
             return super().__call__(*args, **kwargs)
+
+
+@shared_task(base=TenantTask, name="eduflow.tenancy.tasks.school_jobs", ignore_result=True)
+def school_jobs(*, school_id: str, cadence: str) -> dict[str, str]:
+    from . import jobs
+
+    school = School.objects.get(pk=school_id)
+    return jobs.run(cadence, school)
+
+
+@shared_task(name="eduflow.tenancy.tasks.run_school_jobs", ignore_result=True)
+def run_school_jobs(cadence: str) -> int:
+    """Beat: enqueue the cadence's jobs for every active school (one tenant task each)."""
+    with db_context.system_context("schedule per-school jobs"):
+        ids = [str(pk) for pk in School.objects.filter(is_active=True).values_list("pk", flat=True)]
+    for school_id in ids:
+        school_jobs.delay(school_id=school_id, cadence=cadence)
+    return len(ids)

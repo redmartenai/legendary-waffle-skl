@@ -123,7 +123,6 @@ dist
 .tern-port
 
 # Stores VSCode versions used for testing VSCode extensions
-.vscode-test
 
 # pnpm
 .pnpm-store
@@ -157,3 +156,4 @@ celerybeat-schedule*
 __pycache__/
 *.py[cod]
 coverage.xml
+.gitignore

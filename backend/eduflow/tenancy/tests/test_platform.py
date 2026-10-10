@@ -34,7 +34,9 @@ def test_create_school_with_first_admin(staff_client, api_client):
     assert response.status_code == 201, response.content
     school = School.objects.get(code="green-valley")
     # 12 school roles; Platform Admin is the User.is_platform_admin flag, not a school role.
-    assert Role.objects.filter(school=school, is_system=True).count() == len(SYSTEM_ROLES) == 12
+    assert (
+        Role.objects.filter(school=school, is_system=True).count() == len(SYSTEM_ROLES) == 13
+    )  # 12 + security (visitor gate)
     admin = User.objects.get(email="asha@example.test")
     assert admin.must_change_password is True
     assert MembershipRole.objects.filter(membership__user=admin, role__key="school_admin").exists()

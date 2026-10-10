@@ -64,6 +64,11 @@ References are plain UUIDs, not foreign keys: the trail outlives the rows it des
 | `branding.updated`, `branding.logo.replaced` / `.removed`, `branding.favicon.replaced` / `.removed` | success | `metadata.fields`; for images the asset ID, type, size and dimensions; `by_platform` |
 | `branding.domain.added` / `.verified` / `.verification_failed` / `.disabled` / `.primary_set` / `.removed` / `.lapsed` | success | `metadata.hostname`; `verified`: `method` `dns` or `manual` (with the staff `note`); `lapsed` has no actor (the daily job) |
 | `attendance.record.corrected` | success | an approved correction applied: `old_status`, `new_status`, `correction` |
+| `admissions.*`, `homework.*`, `conduct.*`, `assessment.*`, `fees.*`, `hr.*`, `library.*`, `hostel.*`, `transport.*`, `inventory.*`, `visitors.*`, `alumni.*`, `communication.*`, `lms.*` | success | One event per write of the operations modules (ADR-030), named `<module>.<record>.<action>`. Metadata holds identifiers, statuses and amounts, never message, complaint or remark text. Pass tokens and payment references beyond the receipt number are not logged. |
+| `documents.document.downloaded`, `admissions.application.document_downloaded` | success | File downloads |
+| `monitoring.evaluated` | success | No actor (scheduled); `opened`, `resolved`, `escalated` counts; written only when something changed |
+| `monitoring.alert.acknowledged` / `.resolved`, `monitoring.settings.updated`, `monitoring.ask.asked` | success | `ask`: the intent and the row count, not the question text |
+| `reports.<name>.exported` | success | `rows`, `format` |
 
 Plain permission denials (`403 permission_denied`) are logged (`authz_denied`) but not audited, to keep the trail meaningful. Add an audit event where a denial is security-relevant for a specific feature.
 

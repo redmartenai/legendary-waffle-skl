@@ -38,6 +38,25 @@ backend/                Django project (uv-managed)
   eduflow/timetable/    timetables, periods, slots, lessons and schedules (Phase 5)
   eduflow/attendance/   daily section registers, records and corrections (Phase 6, attendance)
   eduflow/branding/     white-label: school colours, logo, favicon, subdomains and custom domains
+  eduflow/notifications/ in-app notifications, preferences, email/SMS delivery
+  eduflow/approvals/    the central approvals queue (aggregates each module's provider)
+  eduflow/documents/    stored files and documents with audiences
+  eduflow/admissions/   enquiry-to-enrolment pipeline, online applications
+  eduflow/homework/     homework, submissions, reviews
+  eduflow/conduct/      remarks and behaviour incidents
+  eduflow/assessment/   exams, mark sheets, approval, publication, corrections, report cards
+  eduflow/fees/         fee plans, scholarships, payments, receipts, refunds, defaulters
+  eduflow/hr/           staff attendance, leave, payroll, payslips, recruitment
+  eduflow/library/      catalogue, copies, loans, fines
+  eduflow/hostel/       rooms, allocation, outpasses, roll call
+  eduflow/transport/    vehicles, routes, riders, trips, reported positions, maintenance
+  eduflow/inventory/    stock, assets, vendors, procurement
+  eduflow/visitors/     visits, security approval, QR passes
+  eduflow/alumni/       alumni, events, campaigns, donations
+  eduflow/communication/ announcements, threads, complaints
+  eduflow/lms/          lessons, progress, quizzes, learning paths, live classes, analytics
+  eduflow/monitoring/   rules, alerts, risk, scorecards, pulse, Ask EduFlow (ADR-031)
+  eduflow/reports/      scoped reports and CSV exports
   eduflow/<module>/     later domain modules
 apps/mobile/            Expo client (imported in Phase 6 from origin/eduflow-new)
 infra/docker/           Compose stack
