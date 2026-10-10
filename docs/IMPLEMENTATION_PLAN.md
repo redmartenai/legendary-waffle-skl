@@ -252,3 +252,24 @@ Not a phase of the original plan. It extends the Phase 2–3 tenancy and school 
 | Client integration (web and mobile) | Not done: no trusted client tree; requirements documented |
 | Separate per-school store apps | Requirements documented only |
 | Password recovery branding | No password-recovery flow exists in the backend (CURRENT_STATE §6) |
+
+## 12. School operations, communication, monitoring and LMS status (2026-10-10)
+
+Implemented against the product sources available (the four product analysis reports were not available;
+see [product/traceability.md](product/traceability.md)). Uncommitted, on `phase-6/attendance-white-label`.
+Decisions: ADR-030 (operations modules), ADR-031 (monitoring), ADR-032 (LMS). Module map:
+[domain/operations-modules.md](domain/operations-modules.md).
+
+| Area | Status |
+|---|---|
+| Notifications (in-app, preferences, email/SMS delivery), central approvals queue, documents | Built and tested |
+| Admissions (pipeline, offer approval, enrolment, online applications) | Built and tested |
+| Homework, conduct (remarks, incidents), examinations (sheets, approval, publication, corrections, report cards) | Built and tested |
+| Fees (plans, scholarships, idempotent payments, receipts, refunds, defaulters, collections) | Built and tested; online payments blocked (no gateway) |
+| HR (staff attendance, leave, payroll with entered deductions, payslips, recruitment) | Built and tested; statutory calculations blocked |
+| Library, hostel, transport (positions as reported only), inventory and procurement, visitors (QR passes), alumni | Built and tested; depreciation and live GPS feed blocked |
+| Communication (announcements, acknowledgements, responses, threads with reply tracking, complaints, sentiment) | Built and tested |
+| Monitoring (14 rules, deduplicated alerts, lifecycle, escalation, role-scoped views, risk, scorecards, pulse, Ask EduFlow, thresholds, scheduled per-school evaluation) | Built and tested; "class without a teacher" blocked (no substitutions) |
+| LMS (lessons, progress, quizzes, learning paths, live classes, analytics) | Built and tested; video hosting and AI provider blocked (no provider) |
+| Reports (attendance, fee dues, exam results, staff attendance, admissions; CSV export) | Built and tested |
+| Client integration | Not done: no trusted client tree |

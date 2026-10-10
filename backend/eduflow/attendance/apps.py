@@ -9,3 +9,6 @@ class AttendanceConfig(AppConfig):
 
     def ready(self) -> None:
         from . import policies  # noqa: F401  (registers data-scope rules)
+        from .approvals import register
+
+        register()

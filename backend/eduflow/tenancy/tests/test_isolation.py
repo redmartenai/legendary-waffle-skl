@@ -183,11 +183,39 @@ def _tenant_routes(resolver=None, prefix=""):
                 yield "/" + prefix + str(entry.pattern), view
 
 
+def _module_matrix_paths() -> set[str]:
+    """Every ``*_MATRIX_PATHS`` set declared by a test module of an EduFlow app."""
+    import importlib
+    import pkgutil
+
+    from django.apps import apps
+
+    paths: set[str] = set()
+    for config in apps.get_app_configs():
+        if not config.name.startswith("eduflow."):
+            continue
+        try:
+            tests = importlib.import_module(f"{config.name}.tests")
+        except ModuleNotFoundError:
+            continue
+        for info in pkgutil.iter_modules(tests.__path__):
+            if not info.name.startswith("test_"):
+                continue
+            module = importlib.import_module(f"{tests.__name__}.{info.name}")
+            for name, value in vars(module).items():
+                if name.endswith("_MATRIX_PATHS") and isinstance(value, set):
+                    paths |= value
+    return paths
+
+
 def test_matrix_covers_every_tenant_endpoint_with_an_object_id():
     import re
 
+    from eduflow.admissions.tests.test_admissions import ADMISSION_MATRIX_PATHS
+    from eduflow.approvals.tests.test_queue import APPROVAL_MATRIX_PATHS
     from eduflow.attendance.tests.test_authorization import ATTENDANCE_MATRIX_PATHS
     from eduflow.branding.tests.test_domains import BRANDING_MATRIX_PATHS
+    from eduflow.documents.tests.test_documents import DOCUMENT_MATRIX_PATHS
     from eduflow.invitations.tests.test_authorization import PHASE4_MATRIX_PATHS
     from eduflow.people.tests.test_isolation import PHASE3_MATRIX_PATHS
     from eduflow.timetable.tests.test_authorization import PHASE5_MATRIX_PATHS
@@ -199,6 +227,10 @@ def test_matrix_covers_every_tenant_endpoint_with_an_object_id():
         | PHASE5_MATRIX_PATHS
         | ATTENDANCE_MATRIX_PATHS
         | BRANDING_MATRIX_PATHS
+        | DOCUMENT_MATRIX_PATHS
+        | APPROVAL_MATRIX_PATHS
+        | ADMISSION_MATRIX_PATHS
+        | _module_matrix_paths()  # later modules declare theirs next to their tests
     )
     normalised = {re.sub(r"\{\w+\}", "<id>", p) for p in every}
     for route, view in _tenant_routes():

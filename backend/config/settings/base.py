@@ -42,6 +42,25 @@ INSTALLED_APPS = [
     "eduflow.timetable",
     "eduflow.attendance",
     "eduflow.branding",
+    "eduflow.notifications",
+    "eduflow.approvals",
+    "eduflow.documents",
+    "eduflow.admissions",
+    "eduflow.homework",
+    "eduflow.conduct",
+    "eduflow.assessment",
+    "eduflow.fees",
+    "eduflow.hr",
+    "eduflow.library",
+    "eduflow.transport",
+    "eduflow.hostel",
+    "eduflow.inventory",
+    "eduflow.visitors",
+    "eduflow.alumni",
+    "eduflow.communication",
+    "eduflow.lms",
+    "eduflow.monitoring",
+    "eduflow.reports",
 ]
 
 MIDDLEWARE = [
@@ -207,6 +226,7 @@ RATE_LIMITS = {
     "invitation_ip": "30/10m",
     "invitation_token": "10/10m",
     "branding_public_ip": "120/m",
+    "admission_apply_ip": "5/h",
 }
 
 # ----------------------------------------------------------------------------- DRF
@@ -250,6 +270,48 @@ SPECTACULAR_SETTINGS = {
         "AttendanceStatusEnum": "eduflow.attendance.models.AttendanceStatus",
         "CorrectionStatusEnum": "eduflow.attendance.models.CorrectionStatus",
         "DomainStatusEnum": "eduflow.branding.models.DomainStatus",
+        # Existing names kept stable now that other modules have fields with the same names.
+        "CategoryEnum": "eduflow.academics.models.SubjectCategory",
+        "ChannelEnum": "eduflow.identity.delivery.Channel",
+        # Operations modules (ADR-030 to ADR-032): explicit names, so equal field names never collide.
+        "NotificationKindEnum": "eduflow.notifications.models.NotificationKind",
+        "NotificationChannelEnum": "eduflow.notifications.models.Channel",
+        "DeliveryStatusEnum": "eduflow.notifications.models.DeliveryStatus",
+        "DocumentAudienceEnum": "eduflow.documents.models.Audience",
+        "AdmissionStageEnum": "eduflow.admissions.models.Stage",
+        "AdmissionSourceEnum": "eduflow.admissions.models.Source",
+        "HomeworkStatusEnum": "eduflow.homework.models.HomeworkStatus",
+        "SubmissionStatusEnum": "eduflow.homework.models.SubmissionStatus",
+        "ToneEnum": "eduflow.conduct.models.Tone",
+        "IncidentSeverityEnum": "eduflow.conduct.models.Severity",
+        "IncidentStatusEnum": "eduflow.conduct.models.IncidentStatus",
+        "SheetStatusEnum": "eduflow.assessment.models.SheetStatus",
+        "PaymentModeEnum": "eduflow.fees.models.PaymentMode",
+        "StaffDayStatusEnum": "eduflow.hr.models.StaffDayStatus",
+        "LeaveStatusEnum": "eduflow.hr.models.LeaveStatus",
+        "RunStatusEnum": "eduflow.hr.models.RunStatus",
+        "OpeningStatusEnum": "eduflow.hr.models.OpeningStatus",
+        "CandidateStageEnum": "eduflow.hr.models.CandidateStage",
+        "CopyStatusEnum": "eduflow.library.models.CopyStatus",
+        "DirectionEnum": "eduflow.transport.models.Direction",
+        "TripStatusEnum": "eduflow.transport.models.TripStatus",
+        "OutpassStatusEnum": "eduflow.hostel.models.OutpassStatus",
+        "RollStatusEnum": "eduflow.hostel.models.RollStatus",
+        "MovementKindEnum": "eduflow.inventory.models.MovementKind",
+        "AssetStatusEnum": "eduflow.inventory.models.AssetStatus",
+        "OrderStatusEnum": "eduflow.inventory.models.OrderStatus",
+        "InvoiceStatusEnum": "eduflow.inventory.models.InvoiceStatus",
+        "VisitStatusEnum": "eduflow.visitors.models.VisitStatus",
+        "AnnouncementAudienceEnum": "eduflow.communication.models.Audience",
+        "ThreadKindEnum": "eduflow.communication.models.ThreadKind",
+        "ComplaintCategoryEnum": "eduflow.communication.models.ComplaintCategory",
+        "ComplaintStatusEnum": "eduflow.communication.models.ComplaintStatus",
+        "SentimentEnum": "eduflow.communication.models.Sentiment",
+        "LessonKindEnum": "eduflow.lms.models.LessonKind",
+        "LiveStatusEnum": "eduflow.lms.models.LiveStatus",
+        "AlertSeverityEnum": "eduflow.monitoring.models.Severity",
+        "AlertDomainEnum": "eduflow.monitoring.models.Domain",
+        "AlertStatusEnum": "eduflow.monitoring.models.AlertStatus",
         "HealthStatusEnum": ["ok", "unavailable"],
     },
 }
@@ -280,6 +342,8 @@ STORAGES = {
     "default": {"BACKEND": "storages.backends.s3.S3Storage", "OPTIONS": _S3_OPTIONS},
     # Brand images (ADR-029): the same private bucket by default, under "branding/<school_id>/".
     "branding": {"BACKEND": "storages.backends.s3.S3Storage", "OPTIONS": _S3_OPTIONS},
+    # Uploaded files of every module (documents, homework, learning content): "documents/<school_id>/".
+    "documents": {"BACKEND": "storages.backends.s3.S3Storage", "OPTIONS": _S3_OPTIONS},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
@@ -320,6 +384,9 @@ BRANDING_DEFAULTS = {
 }
 # How custom-domain ownership is checked: DisabledVerifier (manual, by the platform), DnsOverHttpsVerifier.
 DOMAIN_VERIFIER = env.str("DOMAIN_VERIFIER", default="eduflow.branding.verification.DisabledVerifier")
+
+# AI question drafting (eduflow.lms.ai). Empty = not configured: generation answers 503. No provider ships.
+AI_QUESTION_PROVIDER = env.str("AI_QUESTION_PROVIDER", default="")
 DOMAIN_VERIFICATION_DOH_URL = env.str(
     "DOMAIN_VERIFICATION_DOH_URL", default="https://cloudflare-dns.com/dns-query"
 )
@@ -359,6 +426,17 @@ CELERY_BEAT_SCHEDULE = {
     "identity.purge_expired_auth_records": {
         "task": "eduflow.identity.tasks.purge_expired_auth_records",
         "schedule": 6 * 3600.0,
+    },
+    # Per-school jobs (eduflow.tenancy.jobs): monitoring evaluation, reminders.
+    "tenancy.school_jobs_frequent": {
+        "task": "eduflow.tenancy.tasks.run_school_jobs",
+        "schedule": env.float("SCHOOL_JOBS_FREQUENT_SECONDS", default=15 * 60.0),
+        "args": ("frequent",),
+    },
+    "tenancy.school_jobs_daily": {
+        "task": "eduflow.tenancy.tasks.run_school_jobs",
+        "schedule": 24 * 3600.0,
+        "args": ("daily",),
     },
 }
 

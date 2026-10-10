@@ -87,9 +87,10 @@ jobs:
       - name: Migrations apply cleanly
         run: uv run python manage.py migrate --noinput
         env: { DJANGO_SETTINGS_MODULE: config.settings.test }
-      - name: Migrations roll back and re-apply (Phase 2+ apps, including RLS policies)
+      - name: Migrations roll back and re-apply (every app with RLS policies)
         run: |
-          for app in scopeapp branding attendance timetable invitations people academics audit authz tenancy identity core; do
+          for app in monitoring lms communication alumni visitors inventory hostel transport library hr fees \
+            assessment conduct homework admissions documents notifications scopeapp branding attendance timetable invitations people academics audit authz tenancy identity core; do
             uv run python manage.py migrate "$app" zero --noinput -v 0
           done
           uv run python manage.py migrate --noinput -v 0

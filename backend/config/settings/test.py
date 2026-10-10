@@ -32,8 +32,12 @@ from eduflow.core.logging import build_logging_config  # noqa: E402
 LOG_FORMAT = "json"
 LOGGING = build_logging_config(level="INFO", fmt="json")
 
-# White-label: an in-memory store for brand images, a scriptable DNS verifier, a test base domain.
-STORAGES = {**STORAGES, "branding": {"BACKEND": "django.core.files.storage.InMemoryStorage"}}  # noqa: F405
+# In-memory stores for uploads (brand images, documents), a scriptable DNS verifier, a test base domain.
+STORAGES = {
+    **STORAGES,  # noqa: F405
+    "branding": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+    "documents": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+}
 DOMAIN_VERIFIER = "eduflow.branding.verification.MemoryVerifier"
 WHITE_LABEL_BASE_DOMAIN = "eduflow.test"
 WHITE_LABEL_PLATFORM_HOSTS = ["app.eduflow.test"]
