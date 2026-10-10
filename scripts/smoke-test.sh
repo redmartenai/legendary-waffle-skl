@@ -22,6 +22,8 @@
 #     a correction that its requester cannot approve, and RLS on the attendance tables
 #   - White-label: colours, a logo stored in object storage and served publicly with safe headers, SVG
 #     refused, branding in the public school lookup, a pending custom domain that does not resolve
+#   - Operations: a fee plan, an idempotent payment, a monitoring evaluation with an overdue-fees alert,
+#     Ask EduFlow, AI drafting refused without a provider, and RLS on the new tables
 #   - no secret from .env, and no token issued during the run, appears anywhere in the stack's logs
 set -euo pipefail
 
@@ -320,6 +322,33 @@ code=$(post "${auth[@]}" -d "{\"hostname\":\"portal-$RUN.example.org\"}" "$API/a
 code=$(curl -sS -o /dev/null -w '%{http_code}' "$API/api/v1/branding/resolve?host=portal-$RUN.example.org")
 [[ "$code" == 404 ]] || fail "an unverified domain resolved: $code"
 pass "custom domain registered as pending; it does not resolve until verified"
+
+echo "== Operations and monitoring"
+code=$(post "${auth[@]}" -d "{\"name\":\"Tuition\",\"academic_year_id\":\"$YEAR_ID\",\"instalments\":[{\"label\":\"Term 1\",\"due_date\":\"2026-06-15\",\"amount\":\"30000\"}]}" "$API/api/v1/fee-plans")
+[[ "$code" == 201 ]] || fail "create fee plan: $code $(cat /tmp/eduflow-body.json)"
+PLAN_ID=$(jget '["id"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -d "{\"section_id\":\"$SECTION_ID\"}" "$API/api/v1/fee-plans/$PLAN_ID/assign")
+[[ "$code" == 200 ]] || fail "assign fee plan: $code $(cat /tmp/eduflow-body.json)"
+code=$(post "${auth[@]}" -H "Idempotency-Key: smoke-pay-$RUN" -d "{\"student_id\":\"$STUDENT_ID\",\"amount\":\"500\",\"mode\":\"upi\"}" "$API/api/v1/fee-payments")
+[[ "$code" == 201 ]] || fail "record payment: $code $(cat /tmp/eduflow-body.json)"
+RECEIPT=$(jget '["receipt_number"]' </tmp/eduflow-body.json)
+code=$(post "${auth[@]}" -H "Idempotency-Key: smoke-pay-$RUN" -d "{\"student_id\":\"$STUDENT_ID\",\"amount\":\"500\",\"mode\":\"upi\"}" "$API/api/v1/fee-payments")
+[[ "$code" == 200 ]] && grep -q "\"$RECEIPT\"" /tmp/eduflow-body.json || fail "payment retry was not a replay: $code"
+pass "fee plan assigned to the section; payment receipted once, its retry replayed ($RECEIPT)"
+code=$(post "${auth[@]}" -d '{}' "$API/api/v1/monitoring/evaluate")
+[[ "$code" == 200 ]] || fail "monitoring evaluation: $code $(cat /tmp/eduflow-body.json)"
+code=$(curl -sS -o /tmp/eduflow-body.json -w '%{http_code}' "${auth[@]}" "$API/api/v1/monitoring/alerts?rule=fees_overdue")
+[[ "$code" == 200 ]] && grep -q '"rule": *"fees_overdue"' /tmp/eduflow-body.json || fail "no fees-overdue alert: $code $(cat /tmp/eduflow-body.json)"
+pass "monitoring evaluated the school: an overdue-fees alert with its explanation"
+code=$(post "${auth[@]}" -d '{"question":"Show unpaid fees above 20000"}' "$API/api/v1/monitoring/ask")
+[[ "$code" == 200 ]] && grep -q '"intent": *"fees_overdue"' /tmp/eduflow-body.json || fail "Ask EduFlow: $code $(cat /tmp/eduflow-body.json)"
+pass "Ask EduFlow answers from the school's data"
+code=$(post "${auth[@]}" -d '{"subject":"Maths","topic":"Fractions","grade":"5","count":3}' "$API/api/v1/lms/quizzes/generate")
+[[ "$code" == 503 ]] || fail "AI drafting without a provider did not answer 503: $code"
+pass "AI question drafting refuses without a configured provider (503)"
+rls=$(dc exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAqc "SET ROLE eduflow_app; SELECT (SELECT count(*) FROM fees_payment) + (SELECT count(*) FROM fees_plan) + (SELECT count(*) FROM monitoring_alert);"')
+[[ "$(tr -d '[:space:]' <<<"$rls")" == 0 ]] || fail "RLS: app role without tenant context sees $rls operations rows"
+pass "RLS: fees and monitoring tables hidden from the application role without a tenant context"
 
 echo "== Secrets never logged"
 logs=$(logs)

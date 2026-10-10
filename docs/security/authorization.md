@@ -107,6 +107,30 @@ Platform administrators manage any school's branding and domains through `/platf
 
 Schedules are authorized by their subject: a teacher's, student's or section's schedule needs that record to be visible under both its own read permission and `timetable.read` (ADR-027).
 
+### School operations, communication, monitoring and LMS (ADR-030 to ADR-032)
+
+School admin and principal hold every permission school-wide. Other default grants (scope in brackets):
+
+| Area | Permissions | Default grants beyond admin and principal |
+|---|---|---|
+| Approvals and documents | `approval.read`, `document.read/download/manage` | accountant and HR (approvals); teacher (section, self), parent (child), student (self), HR (school) for documents |
+| Admissions | `admission.read/manage/approve` | none |
+| Homework | `homework.read/manage/submit/review` | teacher (section; writes need an assignment in the section and subject), parent (child), student (self; submit) |
+| Conduct | `remark.read/manage`, `behaviour.read/manage` | teacher (section), parent (child), student (self); families see only records marked visible |
+| Examinations | `exam.read/manage`, `assessment.approve` (plus Phase 2 `assessment.*`) | `exam.read` for teacher, parent, student (school; no personal data) |
+| Fees | `fee.manage`, `fee.approve` (plus Phase 2 `fee.read/update`) | accountant (`fee.manage`), student (`fee.read` self) |
+| HR | `staff_attendance.read/create/manage`, `leave.read/request/manage/approve`, `payroll.read/manage`, `recruitment.read/manage` | every staff role (self: check-in, own leave, own payslips); HR manager (school); accountant (`payroll.read` school) |
+| Library, hostel, transport | `library.*`, `hostel.*`, `hostel.outpass`, `hostel.approve`, `transport.*`, `transport.operate` | librarian, hostel manager, transport manager (school); families (child / self); drivers (`transport.operate` assigned: the routes they drive) |
+| Inventory and procurement | `inventory.read/manage`, `procurement.read/manage/request/approve` | accountant (procurement school, inventory read); staff roles (`procurement.request` self) |
+| Visitors | `visitor.read/register/manage` | new **security** role (school); staff (self: their visitors); parent (register for their child) |
+| Alumni | `alumni.read/manage` | none |
+| Communication | `announcement.read/manage`, `message.read/send`, `complaint.read/create/manage` | everyone reads what is addressed to them; teacher announces to and messages about sections they teach; parents message their children's teachers and raise complaints |
+| LMS | `lms.read/manage/learn` | teacher (section), parent (child), student (self; learn) |
+| Monitoring | `monitoring.read/manage/ask` | teacher (`monitoring.read` self and section: their alert rows and students; `monitoring.ask` self); accountant and HR (`monitoring.ask`) |
+
+Narrow writes (ADR-027) are re-checked in the services through `people.scoping.may_write` and
+`may_write_for_student`; `ResourceView.narrow_writes` marks the views that accept them.
+
 ### Adding a permission
 
 1. Add `"<resource>.<action>": "description"` to `PERMISSIONS`.

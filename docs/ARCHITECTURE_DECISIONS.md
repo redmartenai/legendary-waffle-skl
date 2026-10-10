@@ -641,3 +641,62 @@ Schools on the shared platform need their own name, colours, logo and favicon, a
 - Custom-domain TLS (on-demand certificates) is an edge concern, gated on `GET /branding/resolve`. It is not built.
 - Without a configured verifier, each custom domain needs a manual, audited verification by platform staff.
 - Separate per-school store apps are out of scope: the shared app is themed at run time.
+
+## ADR-030: The ERP modules: one module per domain, the people model reused, approvals aggregated, rules the sources leave open made settings. *Accepted*
+
+**Context**
+
+The product scope (screen documentation, HLD, prototype) covers admissions, homework, conduct, examinations, fees, HR and payroll, library, hostel, transport, inventory and procurement, visitors and alumni. Several of their rules are not stated anywhere: statutory deductions, depreciation, library fines, recruitment stages, leave policy, grading scales.
+
+**Decision**
+
+- **One Django app per domain**, each with models, services, policies (data-scope rules), an API package, RLS and same-school foreign keys (migration `0002_tenant_integrity_and_rls`), and tests including an isolation matrix and an RLS check. No second student, staff or identity model: every module references `people` and `tenancy`.
+- **Shared scope rules** (`people.scoping`): a record about a student, a section or a staff member gets the same section / child / self rules everywhere. `may_write` and `may_write_for_student` implement ADR-027 narrow writes; `ResourceView.narrow_writes` lets a resource view accept a narrow write grant and leave the relationship check to the service.
+- **The approvals queue aggregates; modules decide.** Admission offers, mark sheets, marks corrections, refunds, leave, outpasses and purchase requisitions register providers. Each provider names its school-wide permission (`admission.approve`, `assessment.approve`, `fee.approve`, `leave.approve`, `hostel.approve`, `procurement.approve`).
+- **Files** reuse `documents.files` (content-identified types, 10 MB, private storage, attachment download with a sandboxing CSP).
+- **Unstated rules are not invented.** PF, ESI and TDS are entered amounts. Assets keep cost and date but no depreciation. Loan period, fine rate, leave types and grade bands are the school's settings, with no defaults where no source gives one. Recruitment stages are provisional.
+- **Money** is `Decimal` everywhere. Fee and donation receipts are sequential per school under a lock. Payments are idempotent on a client key.
+- **No fabricated data.** GPS positions are stored only as reported (validated range and clock skew); there is no estimate. There are no online payments: no gateway is integrated.
+- A **Security** system role is added for the visitor gate.
+
+**Consequences**
+
+- Every module is independently testable and isolated by the same mechanisms as Phases 2 to 6.
+- A school must configure fine rates, leave types and grade bands before those features compute anything.
+- Statutory payroll needs a later decision (an integration or rules the school confirms).
+
+## ADR-031: Monitoring is a rule engine over the live modules, producing one deduplicated alert per rule with a lifecycle. *Accepted*
+
+**Context**
+
+The Monitoring Intelligence Layer is the product's core (HLD; prototype `engine/monitoring.ts`). The prototype computes alerts on the client from demo data, with fixed thresholds, owners and escalations (README "First alert set").
+
+**Decision**
+
+- **Rules** (`monitoring/rules.py`) read the modules' own tables through their selectors, inside the school's RLS context. Thresholds are a per-school `MonitoringSettings` row whose defaults are the prototype's constants.
+- **One live alert per rule per school**, enforced by a partial unique constraint. Each evaluation updates the alert's rows and `last_seen_at`; a rule that stops firing resolves its alert automatically. A resolved alert stays as history; if the rule fires again, a new alert opens.
+- **Lifecycle:** open, acknowledged, resolved. Acknowledging stops escalation. Escalation happens once, after the README's time ("after 7 days", "48h", "live"); rules without a stated time are not escalated automatically (the principal sees them from the start).
+- **Owners:** each alert row carries the staff member who owns it (class teacher, subject teacher, the teacher waiting on a reply). New alerts notify the owners and the school's principals and administrators.
+- **Role-scoped views:** school scope sees every alert; self scope sees the alerts with a row it owns, trimmed to those rows. Finance alerts have no staff owner.
+- **Scheduling:** a beat task enqueues one tenant task per active school (`tenancy.jobs`, every 15 minutes by default); `POST /monitoring/evaluate` runs it on demand.
+- **Risk, scorecards and pulse** use the prototype's weights and formula. Components without data score as the prototype does, and the API lists them in `no_data`.
+- **Ask EduFlow** is deterministic intent matching (no language model). Each intent reads through the caller's permissions and data scopes; an intent the caller may not use answers that they have no access, without revealing data.
+- **Not built:** "Class without a teacher" (no substitutions); a holiday calendar (school days come from the published timetable and from registers taken).
+
+**Consequences**
+
+- Alerts are explainable and reproducible from the data at a point in time.
+- An event outbox (ADR-010) would allow near-real-time evaluation; until then alerts lag by up to the evaluation interval.
+
+## ADR-032: LMS without hosted video, live-class lock-in or invented AI output. *Accepted*
+
+**Decision**
+
+- Lessons are notes (text or a file), a link to a recorded video hosted wherever the school hosts it (https only), or a quiz. Families see published content only.
+- Quizzes are scored on submission; the best attempt counts; answer keys are shown to a student only after their first attempt; lists never carry keys.
+- Live classes store any provider's join link; joining through EduFlow records attendance.
+- AI question drafting goes through `AI_QUESTION_PROVIDER` (empty by default: `503 ai_unavailable`). Provider output is validated and malformed questions are dropped, never repaired. Drafts are returned for review and are never saved or published automatically.
+
+**Consequences**
+
+- Choosing a video host, a meeting provider or an AI provider needs no schema change.

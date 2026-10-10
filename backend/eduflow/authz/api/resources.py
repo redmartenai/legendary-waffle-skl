@@ -89,6 +89,9 @@ class ResourceView(TenantAPIView):
     read_permission: ClassVar[str]
     write_permission: ClassVar[str | None] = None
     output_serializer: ClassVar[type[serializers.Serializer[Any]]]
+    # True when the module's service re-checks a narrower write grant itself (ADR-027: a teacher writing
+    # for a section they teach). The target is still loaded through the write permission's scope.
+    narrow_writes: ClassVar[bool] = False
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -113,6 +116,8 @@ class ResourceView(TenantAPIView):
         return self.resource.get(self.actor, permission, pk, base=self.base_queryset())
 
     def require_school_scope(self, request: Request, permission: str) -> None:
+        if self.narrow_writes and self.actor.scopes(permission):
+            return
         if DataScope.SCHOOL not in self.actor.scopes(permission):
             self.permission_denied(request)
 
